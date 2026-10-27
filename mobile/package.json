@@ -1,5 +1,5 @@
 {
-  "name": "mobile",
+  "name": "campus-lost-and-found-app",
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
@@ -27,5 +27,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "description": "Expo (React Native) app for Campus Lost & Found",
+  "author": "Deepanshi Agarwal",
+  "license": "UNLICENSED"
 }

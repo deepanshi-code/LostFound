@@ -2,35 +2,53 @@
 
 A mobile app for colleges, schools and other institutions. People report items they **lost** or **found**, the app suggests **possible matches**, and contact details are shared **only after the poster approves** a response.
 
+## Features
+
+- **Verified campus accounts.** Only institutional email domains can sign up, confirmed with a 6-digit emailed code. Includes password reset.
+- **Report in under a minute.** Lost or found, 22 categories, place, date, description and a photo.
+- **Browse and search** with Lost/Found and category filters.
+- **Automatic matching** of lost reports against found reports.
+- **Ownership check.** Claimants must describe a detail that isn't in the post.
+- **Privacy by default.** Email and phone are shared only after the poster approves.
+- **Light, dark and system themes.**
+
+## Tech stack
+
+| Part | Technology |
+|---|---|
+| App | Expo SDK 58 (React Native 0.88), React Navigation, runs on Android, iOS and web |
+| API | Node.js 22.13+, Express 5, JWT auth, Multer for photo uploads |
+| Database | SQLite through Node's built-in `node:sqlite` (no native build step) |
+| Email | Nodemailer over any SMTP provider |
+
 ```
-mobile/   Expo (React Native) app: Android, iOS, and web
-backend/  Node.js + Express REST API, SQLite database (Node's built-in node:sqlite)
+mobile/   Expo app
+backend/  REST API and database
 ```
 
-## Run it
+## Getting started
 
-You need Node.js 22.13 or newer (24 is installed on this machine).
-
-**1. Start the backend** (terminal 1)
+Requires **Node.js 22.13 or newer**.
 
 ```bash
-cd backend
-npm install
-npm run seed
-npm start
+npm run setup     # install backend and app dependencies
+npm run seed      # create the database with demo data
 ```
 
-`npm run seed` wipes the database and loads demo data. Demo logins (password `demo1234`, already verified):
+Copy `backend/.env.example` to `backend/.env` and adjust it (see [Configuration](#configuration-backend)).
+
+Then run each in its own terminal:
+
+```bash
+npm run backend   # API on http://localhost:4000, reloads on change
+npm run app       # Expo dev server (scan the QR code with Expo Go)
+```
+
+`npm run web` opens the app in a browser instead.
+
+Demo accounts created by the seed (password `demo1234`, already verified):
 - `aisha@campus.test`: posted the found items
 - `rohan@campus.test`: posted the lost items
-
-**2. Start the app** (terminal 2)
-
-```bash
-cd mobile
-npm install
-npx expo start
-```
 
 - **On your phone:** install **Expo Go** from the Play Store / App Store and scan the QR code. The phone and the laptop must be on the **same Wi-Fi**. The app finds the backend automatically at `http://<your-laptop-ip>:4000`. If it can't connect, allow Node.js through Windows Firewall (Private networks).
 - **In a browser:** press `w` in the Expo terminal.
@@ -46,7 +64,7 @@ Copy `backend/.env.example` to `backend/.env`:
 |---|---|
 | `PORT` | API port (default 4000) |
 | `JWT_SECRET` | Secret used to sign login tokens. **Must** be set to a long random value anywhere other than your laptop. |
-| `ALLOWED_EMAIL_DOMAIN` | Only these email domains can sign up, comma-separated, e.g. `geu.ac.in,gehu.ac.in`. The match is exact: subdomains and look-alikes are rejected. Empty means anyone can sign up. Set to `geu.ac.in` in this project's `.env`. |
+| `ALLOWED_EMAIL_DOMAIN` | Only these email domains can sign up, comma-separated, e.g. `geu.ac.in,gehu.ac.in`. The match is exact: subdomains and look-alikes are rejected. Empty means anyone can sign up. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Mail server for verification and reset codes. If empty, codes are printed in the backend terminal. |
 | `MAIL_FROM` | Optional sender, e.g. `Campus Lost & Found <you@gmail.com>` |
 
@@ -126,3 +144,7 @@ All routes except register and login need `Authorization: Bearer <token>`.
 - **The token is kept in AsyncStorage.** On native builds, `expo-secure-store` is more secure.
 - **No admin/moderation role yet.** An institution would want a lost-property desk account that can hold items and remove spam.
 - **Date is a text field.** A native date picker would reduce input errors.
+
+## Licence
+
+Copyright © 2026 Deepanshi Agarwal. All rights reserved. The code is public for viewing and evaluation only; see [LICENSE](LICENSE).

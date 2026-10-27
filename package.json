@@ -1,0 +1,15 @@
+{
+  "name": "campus-lost-and-found",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Campus Lost & Found: mobile app and API for reporting and returning lost items at colleges",
+  "author": "Deepanshi Agarwal",
+  "license": "UNLICENSED",
+  "scripts": {
+    "setup": "npm install --prefix backend && npm install --prefix mobile",
+    "seed": "npm run seed --prefix backend",
+    "backend": "npm run dev --prefix backend",
+    "app": "npm start --prefix mobile",
+    "web": "npm run web --prefix mobile"
+  }
+}
