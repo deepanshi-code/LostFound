@@ -46,6 +46,8 @@ npm run app       # Expo dev server (scan the QR code with Expo Go)
 
 `npm run web` opens the app in a browser instead.
 
+Demo photos come from `backend/seed-images/` (public domain, see its `CREDITS.md`). To use your own, save a photo there with the item's file name (e.g. `keys.jpg`) and run `npm run seed` again.
+
 Demo accounts created by the seed (password `demo1234`, already verified):
 - `aisha@campus.test`: posted the found items
 - `rohan@campus.test`: posted the lost items
