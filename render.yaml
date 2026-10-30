@@ -32,3 +32,22 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
+
+  # The web app, built from mobile/ as a static site (free static sites don't sleep)
+  - type: web
+    name: lostfound-app
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm ci && npx expo export --platform web
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Baked into the app at build time; change it and redeploy if the API address changes
+      - key: EXPO_PUBLIC_API_URL
+        value: https://lostfound-api-cvj8.onrender.com
+    routes:
+      # Single-page app: send every path to index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
