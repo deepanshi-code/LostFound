@@ -103,7 +103,7 @@ The repository includes config for free hosting:
 | Web app | [Netlify](https://netlify.com) | `netlify.toml` |
 
 1. **API and web app:** in Render choose **New → Blueprint**, pick this repository and apply. Note the service URL, e.g. `https://lostfound-api.onrender.com`. Optionally fill in the `SMTP_*` variables in the dashboard to send real emails.
-2. **Alternative for the web app:** in Netlify choose **Add new site → Import an existing project**, pick this repository, and add the environment variable `EXPO_PUBLIC_API_URL` = the Render URL. Deploy.
+2. **Alternatives for the web app:** Vercel (`mobile/vercel.json`, set Root Directory to `mobile`) or Netlify (`netlify.toml`). Add the environment variable `EXPO_PUBLIC_API_URL` = the API URL, then deploy.
 
 On Render's free plan the API sleeps after about 15 minutes idle (the first request then takes ~30 s) and its disk is wiped on restart. `SEED_DEMO=true` reloads the demo data, and anything users posted is lost. Use a paid disk or a hosted database before real use.
 
