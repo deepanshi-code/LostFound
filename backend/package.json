@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
-    "seed": "node --env-file-if-exists=.env src/seed.js"
+    "seed": "node --env-file-if-exists=.env src/seed.js",
+    "mail-test": "node --env-file-if-exists=.env src/mail-test.js",
+    "setup-email": "node src/setup-email.js"
   },
   "engines": {
     "node": ">=22.13"

@@ -15,12 +15,31 @@ const transporter = SMTP_HOST && SMTP_USER && SMTP_PASS
     })
   : null;
 
-if (transporter) {
-  transporter.verify()
-    .then(() => console.log(`[mail] SMTP ready (${SMTP_HOST} as ${SMTP_USER})`))
-    .catch((e) => console.error(`[mail] SMTP login failed: ${e.message}. Check SMTP_* in .env`));
-} else {
-  console.warn('[mail] SMTP not configured. Verification codes will be printed here instead of emailed.');
+// Logs in to the SMTP server and explains the most common failures in plain words
+export async function smtpStatus() {
+  if (!transporter) {
+    return { ok: false, message: 'SMTP is not configured (SMTP_HOST, SMTP_USER and SMTP_PASS in backend/.env are empty).' };
+  }
+  try {
+    await transporter.verify();
+    return { ok: true, message: `SMTP ready (${SMTP_HOST} as ${SMTP_USER})` };
+  } catch (e) {
+    const hint =
+      e.code === 'EAUTH' || /535|Username and Password/i.test(e.message)
+        ? 'Login rejected. For Gmail, SMTP_PASS must be a 16-character App Password, not your normal password.'
+        : e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION' || e.code === 'ESOCKET'
+          ? `Could not reach ${SMTP_HOST}:${port}. The network (e.g. campus Wi-Fi) may block email ports; try a mobile hotspot.`
+          : e.message;
+    return { ok: false, message: `SMTP login failed: ${hint}` };
+  }
+}
+
+if (process.argv[1]?.endsWith('server.js')) {
+  if (transporter) {
+    smtpStatus().then((s) => (s.ok ? console.log(`[mail] ${s.message}`) : console.error(`[mail] ${s.message}`)));
+  } else {
+    console.warn('[mail] SMTP not configured. Verification codes will be printed here instead of emailed.');
+  }
 }
 
 const PURPOSE = {
