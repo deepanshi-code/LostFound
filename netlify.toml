@@ -1,0 +1,16 @@
+# Netlify builds the Expo app as a static website.
+# Set EXPO_PUBLIC_API_URL (your Render API address) in Netlify → Site configuration →
+# Environment variables. It is baked in at build time, so redeploy after changing it.
+[build]
+  base = "mobile"
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Single-page app: send every path to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

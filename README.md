@@ -93,6 +93,20 @@ SMTP_PASS=your-16-char-app-password
 
 Gmail allows roughly 500 emails a day, which is fine for a pilot. For a whole college, use a transactional email service (for example Brevo, Resend or Amazon SES) with your own domain, so codes don't land in spam.
 
+## Deployment
+
+The repository includes config for free hosting:
+
+| Part | Host | Config |
+|---|---|---|
+| API | [Render](https://render.com) | `render.yaml` (Blueprint) |
+| Web app | [Netlify](https://netlify.com) | `netlify.toml` |
+
+1. **API:** in Render choose **New → Blueprint**, pick this repository and apply. Note the service URL, e.g. `https://lostfound-api.onrender.com`. Optionally fill in the `SMTP_*` variables in the dashboard to send real emails.
+2. **Web app:** in Netlify choose **Add new site → Import an existing project**, pick this repository, and add the environment variable `EXPO_PUBLIC_API_URL` = the Render URL. Deploy.
+
+On Render's free plan the API sleeps after about 15 minutes idle (the first request then takes ~30 s) and its disk is wiped on restart. `SEED_DEMO=true` reloads the demo data, and anything users posted is lost. Use a paid disk or a hosted database before real use.
+
 ## How it works
 
 1. **Report.** Choose lost or found, then add a title, category, place, date, description and an optional photo.

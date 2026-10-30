@@ -4,8 +4,18 @@ import multer from 'multer';
 import authRoutes from './routes/auth.js';
 import itemRoutes, { UPLOAD_DIR } from './routes/items.js';
 import claimRoutes from './routes/claims.js';
+import { db } from './db.js';
+
+// Hosts with an ephemeral disk (e.g. Render's free plan) start with an empty database.
+// SEED_DEMO=true loads the demo users and items whenever that happens.
+if (process.env.SEED_DEMO === 'true' && db.prepare('SELECT COUNT(*) AS n FROM users').get().n === 0) {
+  await import('./seed.js');
+}
 
 const app = express();
+// Behind a hosting proxy, use the visitor's real IP (for rate limiting) instead of the proxy's.
+// TRUST_PROXY=1 means "trust one proxy hop".
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.use(cors());
 app.use(express.json());
 
