@@ -2,6 +2,12 @@
 
 A mobile app for colleges, schools and other institutions. People report items they **lost** or **found**, the app suggests **possible matches**, and contact details are shared **only after the poster approves** a response.
 
+**Live demo: [lostfound-mobile.vercel.app](https://lostfound-mobile.vercel.app)**
+
+Log in with a demo account (password `demo1234`): `rohan@campus.test` or `aisha@campus.test`.
+
+> The demo runs on free hosting. If it hasn't been used for a while, the first login can take about 30 seconds while the server wakes up. Demo data resets when the server restarts.
+
 ## Features
 
 - **Verified campus accounts.** Only institutional email domains can sign up, confirmed with a 6-digit emailed code. Includes password reset.
