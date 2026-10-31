@@ -1,6 +1,7 @@
 # Render Blueprint for the API (https://render.com/docs/blueprint-spec)
-# Free plan: the service sleeps after ~15 min idle and its disk is wiped on restart,
-# so SEED_DEMO reloads the demo data whenever the database starts empty.
+# Free plan: the service sleeps after ~15 min idle and its disk is wiped on restart.
+# Set DATABASE_URL and SUPABASE_* (in the dashboard) so data and photos live in Supabase and survive.
+# SEED_DEMO loads demo data only when the database is empty (i.e. once, on a new database).
 services:
   - type: web
     name: lostfound-api
@@ -21,6 +22,15 @@ services:
         value: "true"
       - key: TRUST_PROXY
         value: "1"
+      # Permanent storage: fill these in the Render dashboard (never commit them)
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: item-photos
       # Email: fill these in the Render dashboard (never commit them)
       - key: SMTP_HOST
         value: smtp.gmail.com

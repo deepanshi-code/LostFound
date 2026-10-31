@@ -2,14 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import authRoutes from './routes/auth.js';
-import itemRoutes, { UPLOAD_DIR } from './routes/items.js';
+import itemRoutes from './routes/items.js';
 import claimRoutes from './routes/claims.js';
-import { db } from './db.js';
+import { initDb, one, usingHostedDb } from './db.js';
+import { UPLOAD_DIR, usingCloudStorage } from './storage.js';
 
-// Hosts with an ephemeral disk (e.g. Render's free plan) start with an empty database.
-// SEED_DEMO=true loads the demo users and items whenever that happens.
-if (process.env.SEED_DEMO === 'true' && db.prepare('SELECT COUNT(*) AS n FROM users').get().n === 0) {
-  await import('./seed.js');
+await initDb();
+console.log(`[db] ${usingHostedDb ? 'Hosted Postgres (DATABASE_URL)' : 'Local PGlite in backend/data/pgdata'}`);
+console.log(`[photos] ${usingCloudStorage ? 'Supabase Storage' : 'Local disk (backend/uploads)'}`);
+
+// SEED_DEMO=true loads the demo users and items when the database is empty (e.g. a brand-new database).
+if (process.env.SEED_DEMO === 'true' && (await one('SELECT COUNT(*)::int AS n FROM users')).n === 0) {
+  const { seedDemo } = await import('./seed.js');
+  await seedDemo();
 }
 
 const app = express();

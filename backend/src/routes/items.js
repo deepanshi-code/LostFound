@@ -2,22 +2,14 @@ import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { mkdirSync, unlink } from 'node:fs';
-import { db, CATEGORIES } from '../db.js';
+import { CATEGORIES, one, query } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { findMatches } from '../matching.js';
+import { deleteImage, publicImagePath, saveImage } from '../storage.js';
 
-export const UPLOAD_DIR = path.resolve(import.meta.dirname, '..', '..', 'uploads');
-mkdirSync(UPLOAD_DIR, { recursive: true });
-
+// Photos are kept in memory, validated, then handed to storage (Supabase or local disk)
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: UPLOAD_DIR,
-    filename: (_req, file, cb) => {
-      const ext = (path.extname(file.originalname) || '.jpg').toLowerCase().slice(0, 5);
-      cb(null, crypto.randomBytes(12).toString('hex') + ext);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -30,58 +22,54 @@ router.use(requireAuth);
 
 const ITEM_SELECT = `
   SELECT i.*, u.name AS poster_name,
-         (SELECT COUNT(*) FROM claims c WHERE c.item_id = i.id AND c.status = 'pending') AS pending_claims
+         (SELECT COUNT(*)::int FROM claims c WHERE c.item_id = i.id AND c.status = 'pending') AS pending_claims
   FROM items i JOIN users u ON u.id = i.user_id`;
 
-const withImageUrl = (item) => ({
-  ...item,
-  image_url: item.image_path ? `/uploads/${item.image_path}` : null,
-});
+const withImageUrl = (item) => ({ ...item, image_url: publicImagePath(item.image_path) });
 
-const getItem = (id) => db.prepare(`${ITEM_SELECT} WHERE i.id = ?`).get(id);
+// Non-numeric ids would make Postgres throw, so treat them as "not found"
+const getItem = (id) => (/^\d+$/.test(String(id)) ? one(`${ITEM_SELECT} WHERE i.id = $1`, [Number(id)]) : undefined);
 
 router.get('/categories', (_req, res) => res.json({ categories: CATEGORIES }));
 
 // Numbers for the home screen
-router.get('/stats', (_req, res) => {
-  const row = db.prepare(`
-    SELECT SUM(type = 'lost' AND status = 'open')  AS lost_open,
-           SUM(type = 'found' AND status = 'open') AS found_open,
-           SUM(status = 'resolved')                AS reunited
-    FROM items`).get();
-  res.json({ lost_open: row.lost_open || 0, found_open: row.found_open || 0, reunited: row.reunited || 0 });
+router.get('/stats', async (_req, res) => {
+  const row = await one(`
+    SELECT COALESCE(SUM((type = 'lost' AND status = 'open')::int), 0)::int  AS lost_open,
+           COALESCE(SUM((type = 'found' AND status = 'open')::int), 0)::int AS found_open,
+           COALESCE(SUM((status = 'resolved')::int), 0)::int                AS reunited
+    FROM items`);
+  res.json(row);
 });
 
 // Feed: GET /api/items?type=lost|found&category=Keys&q=blue&status=open
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const where = [];
   const params = [];
+  const add = (value) => { params.push(value); return `$${params.length}`; };
   const { type, category, q } = req.query;
   const status = req.query.status || 'open';
 
-  if (type === 'lost' || type === 'found') { where.push('i.type = ?'); params.push(type); }
-  if (category && CATEGORIES.includes(category)) { where.push('i.category = ?'); params.push(category); }
-  if (status !== 'all') { where.push('i.status = ?'); params.push(status); }
+  if (type === 'lost' || type === 'found') where.push(`i.type = ${add(type)}`);
+  if (category && CATEGORIES.includes(category)) where.push(`i.category = ${add(category)}`);
+  if (status !== 'all') where.push(`i.status = ${add(status)}`);
   if (q) {
-    where.push('(i.title LIKE ? OR i.description LIKE ? OR i.location LIKE ?)');
-    const like = `%${String(q).trim()}%`;
-    params.push(like, like, like);
+    const like = add(`%${String(q).trim()}%`);
+    where.push(`(i.title ILIKE ${like} OR i.description ILIKE ${like} OR i.location ILIKE ${like})`);
   }
 
-  const sql = `${ITEM_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-               ORDER BY i.created_at DESC, i.id DESC LIMIT 100`;
-  res.json({ items: db.prepare(sql).all(...params).map(withImageUrl) });
-});
-
-router.get('/mine', (req, res) => {
-  const items = db
-    .prepare(`${ITEM_SELECT} WHERE i.user_id = ? ORDER BY i.created_at DESC, i.id DESC`)
-    .all(req.userId);
+  const items = await query(`${ITEM_SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+               ORDER BY i.created_at DESC, i.id DESC LIMIT 100`, params);
   res.json({ items: items.map(withImageUrl) });
 });
 
-router.get('/:id', (req, res) => {
-  const item = getItem(req.params.id);
+router.get('/mine', async (req, res) => {
+  const items = await query(`${ITEM_SELECT} WHERE i.user_id = $1 ORDER BY i.created_at DESC, i.id DESC`, [req.userId]);
+  res.json({ items: items.map(withImageUrl) });
+});
+
+router.get('/:id', async (req, res) => {
+  const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
 
   const isOwner = item.user_id === req.userId;
@@ -89,36 +77,33 @@ router.get('/:id', (req, res) => {
 
   if (isOwner) {
     // Owner sees every response; contact details only for the ones they approved.
-    response.claims = db.prepare(`
+    response.claims = await query(`
       SELECT c.id, c.message, c.status, c.created_at, u.name AS claimant_name,
              CASE WHEN c.status = 'approved' THEN u.email END AS claimant_email,
              CASE WHEN c.status = 'approved' THEN u.phone END AS claimant_phone
       FROM claims c JOIN users u ON u.id = c.claimant_id
-      WHERE c.item_id = ? ORDER BY c.created_at DESC`).all(item.id);
+      WHERE c.item_id = $1 ORDER BY c.created_at DESC`, [item.id]);
   } else {
-    const mine = db
-      .prepare('SELECT id, message, status, created_at FROM claims WHERE item_id = ? AND claimant_id = ?')
-      .get(item.id, req.userId);
+    const mine = await one('SELECT id, message, status, created_at FROM claims WHERE item_id = $1 AND claimant_id = $2', [item.id, req.userId]);
     response.my_claim = mine || null;
     if (mine?.status === 'approved') {
-      const poster = db.prepare('SELECT email, phone FROM users WHERE id = ?').get(item.user_id);
-      response.poster_contact = poster;
+      response.poster_contact = await one('SELECT email, phone FROM users WHERE id = $1', [item.user_id]);
     }
   }
   res.json(response);
 });
 
-router.get('/:id/matches', (req, res) => {
-  const item = getItem(req.params.id);
+router.get('/:id/matches', async (req, res) => {
+  const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
   const opposite = item.type === 'lost' ? 'found' : 'lost';
-  const candidates = db
-    .prepare(`${ITEM_SELECT} WHERE i.type = ? AND i.category = ? AND i.status = 'open' AND i.user_id != ?`)
-    .all(opposite, item.category, item.user_id);
+  const candidates = await query(
+    `${ITEM_SELECT} WHERE i.type = $1 AND i.category = $2 AND i.status = 'open' AND i.user_id != $3`,
+    [opposite, item.category, item.user_id]);
   res.json({ matches: findMatches(item, candidates).map(withImageUrl) });
 });
 
-router.post('/', upload.single('image'), (req, res) => {
+router.post('/', upload.single('image'), async (req, res) => {
   const b = req.body;
   const type = b.type;
   const title = String(b.title || '').trim();
@@ -127,10 +112,7 @@ router.post('/', upload.single('image'), (req, res) => {
   const location = String(b.location || '').trim();
   const date = String(b.date_occurred || '').trim() || new Date().toISOString().slice(0, 10);
 
-  const fail = (msg) => {
-    if (req.file) unlink(req.file.path, () => {});
-    res.status(400).json({ error: msg });
-  };
+  const fail = (msg) => res.status(400).json({ error: msg });
   if (type !== 'lost' && type !== 'found') return fail('Type must be "lost" or "found"');
   if (!title) return fail('Title is required');
   if (title.length > 80) return fail('Title must be 80 characters or fewer');
@@ -138,36 +120,42 @@ router.post('/', upload.single('image'), (req, res) => {
   if (!location) return fail('Location is required');
   if (Number.isNaN(Date.parse(date))) return fail('Date must look like YYYY-MM-DD');
 
-  const { lastInsertRowid } = db.prepare(`
-    INSERT INTO items (user_id, type, title, description, category, location, date_occurred, image_path)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(req.userId, type, title, description, category, location, date, req.file?.filename ?? null);
+  let imagePath = null;
+  if (req.file) {
+    const ext = (path.extname(req.file.originalname) || '.jpg').toLowerCase().slice(0, 5);
+    imagePath = await saveImage(req.file.buffer, crypto.randomBytes(12).toString('hex') + ext);
+  }
 
-  res.status(201).json({ item: withImageUrl(getItem(lastInsertRowid)) });
+  const { id } = await one(`
+    INSERT INTO items (user_id, type, title, description, category, location, date_occurred, image_path)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+    [req.userId, type, title, description, category, location, date, imagePath]);
+
+  res.status(201).json({ item: withImageUrl(await getItem(id)) });
 });
 
-router.patch('/:id/status', (req, res) => {
-  const item = getItem(req.params.id);
+router.patch('/:id/status', async (req, res) => {
+  const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
   if (item.user_id !== req.userId) return res.status(403).json({ error: 'Only the poster can change this' });
   const { status } = req.body;
   if (status !== 'open' && status !== 'resolved') return res.status(400).json({ error: 'Invalid status' });
-  db.prepare('UPDATE items SET status = ? WHERE id = ?').run(status, item.id);
-  res.json({ item: withImageUrl(getItem(item.id)) });
+  await query('UPDATE items SET status = $1 WHERE id = $2', [status, item.id]);
+  res.json({ item: withImageUrl(await getItem(item.id)) });
 });
 
-router.delete('/:id', (req, res) => {
-  const item = getItem(req.params.id);
+router.delete('/:id', async (req, res) => {
+  const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
   if (item.user_id !== req.userId) return res.status(403).json({ error: 'Only the poster can delete this' });
-  db.prepare('DELETE FROM items WHERE id = ?').run(item.id);
-  if (item.image_path) unlink(path.join(UPLOAD_DIR, item.image_path), () => {});
+  await query('DELETE FROM items WHERE id = $1', [item.id]);
+  await deleteImage(item.image_path);
   res.json({ ok: true });
 });
 
 // Respond to someone else's post ("This is mine" / "I found this")
-router.post('/:id/claims', (req, res) => {
-  const item = getItem(req.params.id);
+router.post('/:id/claims', async (req, res) => {
+  const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
   if (item.user_id === req.userId) return res.status(400).json({ error: 'You cannot respond to your own post' });
   if (item.status !== 'open') return res.status(400).json({ error: 'This item is already resolved' });
@@ -180,13 +168,11 @@ router.post('/:id/claims', (req, res) => {
         : 'Tell the owner where you found it (at least 10 characters)',
     });
   }
-  if (db.prepare('SELECT 1 FROM claims WHERE item_id = ? AND claimant_id = ?').get(item.id, req.userId)) {
+  if (await one('SELECT 1 FROM claims WHERE item_id = $1 AND claimant_id = $2', [item.id, req.userId])) {
     return res.status(409).json({ error: 'You have already responded to this post' });
   }
-  const { lastInsertRowid } = db
-    .prepare('INSERT INTO claims (item_id, claimant_id, message) VALUES (?, ?, ?)')
-    .run(item.id, req.userId, message);
-  res.status(201).json({ claim: db.prepare('SELECT * FROM claims WHERE id = ?').get(lastInsertRowid) });
+  const claim = await one('INSERT INTO claims (item_id, claimant_id, message) VALUES ($1, $2, $3) RETURNING *', [item.id, req.userId, message]);
+  res.status(201).json({ claim });
 });
 
 export default router;

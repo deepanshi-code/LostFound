@@ -6,7 +6,7 @@ A mobile app for colleges, schools and other institutions. People report items t
 
 Log in with a demo account (password `demo1234`): `rohan@campus.test` or `aisha@campus.test`.
 
-> The demo runs on free hosting. If it hasn't been used for a while, the first login can take about 30 seconds while the server wakes up. Demo data resets when the server restarts.
+> The demo runs on free hosting. If it hasn't been used for a while, the first login can take about 30 seconds while the server wakes up. Demo accounts are shared, so please keep posts tidy.
 
 ## Features
 
@@ -24,7 +24,8 @@ Log in with a demo account (password `demo1234`): `rohan@campus.test` or `aisha@
 |---|---|
 | App | Expo SDK 58 (React Native 0.88), React Navigation, runs on Android, iOS and web |
 | API | Node.js 22.13+, Express 5, JWT auth, Multer for photo uploads |
-| Database | SQLite through Node's built-in `node:sqlite` (no native build step) |
+| Database | PostgreSQL: Supabase in production, [PGlite](https://pglite.dev) (embedded Postgres, nothing to install) for local development |
+| Photos | Supabase Storage in production, local disk in development |
 | Email | Nodemailer over any SMTP provider |
 
 ```
@@ -111,7 +112,14 @@ The repository includes config for free hosting:
 1. **API and web app:** in Render choose **New → Blueprint**, pick this repository and apply. Note the service URL, e.g. `https://lostfound-api.onrender.com`. Optionally fill in the `SMTP_*` variables in the dashboard to send real emails.
 2. **Alternatives for the web app:** Vercel (`mobile/vercel.json`, set Root Directory to `mobile`) or Netlify (`netlify.toml`). Add the environment variable `EXPO_PUBLIC_API_URL` = the API URL, then deploy.
 
-On Render's free plan the API sleeps after about 15 minutes idle (the first request then takes ~30 s) and its disk is wiped on restart. `SEED_DEMO=true` reloads the demo data, and anything users posted is lost. Use a paid disk or a hosted database before real use.
+**Permanent data (Supabase, free):**
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **Storage**, create a **public** bucket named `item-photos`.
+3. Click **Connect → Connection string → Session pooler** and copy the URI, putting in your database password. The session pooler works from IPv4-only hosts such as Render.
+4. In **Project Settings → API Keys**, copy the **Project URL** and a **secret** (or legacy `service_role`) key.
+5. In Render, open **lostfound-api → Environment** and set `DATABASE_URL`, `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. On the first start the API creates its tables and loads the demo data once.
+
+Without these settings, the API falls back to an embedded database and local photos, which Render's free disk wipes on every restart. Render's free API also sleeps after about 15 minutes idle, so the first request then takes around 30 s.
 
 ## How it works
 
@@ -162,7 +170,7 @@ All routes except register and login need `Authorization: Bearer <token>`.
 
 - **No notifications yet.** Users must open the app to see new responses. Next step: Expo push notifications.
 - **Matching is keyword-based.** "Specs" won't match "glasses". Options: a synonym list, or text embeddings, measured against the current baseline.
-- **Images are stored on local disk.** To deploy, move them to object storage (e.g. S3 or Cloudinary) and SQLite to Postgres.
+- **Free-tier limits.** Supabase free: 500 MB database and 1 GB photos, and the project pauses after a week without traffic (resume it in the dashboard). Photos are not resized yet; resizing on upload would save space.
 - **The token is kept in AsyncStorage.** On native builds, `expo-secure-store` is more secure.
 - **No admin/moderation role yet.** An institution would want a lost-property desk account that can hold items and remove spam.
 - **Date is a text field.** A native date picker would reduce input errors.

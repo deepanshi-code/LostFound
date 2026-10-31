@@ -14,10 +14,11 @@ export function formatDate(value) {
   return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// created_at comes from SQLite as UTC "YYYY-MM-DD HH:MM:SS"
+// created_at is an ISO timestamp from Postgres (older SQLite-style "YYYY-MM-DD HH:MM:SS" is treated as UTC)
 export function timeAgo(value) {
   if (!value) return '';
-  const secs = (Date.now() - new Date(value.replace(' ', 'T') + 'Z')) / 1000;
+  const date = value.includes('T') ? new Date(value) : new Date(value.replace(' ', 'T') + 'Z');
+  const secs = (Date.now() - date) / 1000;
   if (secs < 60) return 'Just now';
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
   if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;

@@ -6,7 +6,8 @@ let onUnauthorized = () => {};
 export const setToken = (token) => { authToken = token; };
 export const setOnUnauthorized = (fn) => { onUnauthorized = fn; };
 
-export const imageUrl = (path) => (path ? API_URL + path : null);
+// Cloud photos arrive as full URLs, local ones as /uploads/... paths on the API server
+export const imageUrl = (path) => (!path ? null : /^https?:\/\//.test(path) ? path : API_URL + path);
 
 // api('/items', { method: 'POST', body: {...} })  — JSON
 // api('/items', { method: 'POST', form })         — multipart (photo upload)
