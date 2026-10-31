@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, ScrollView, Text, View } from 'react-native';
 import { api, imageUrl } from '../api';
 import ItemCard from '../ItemCard';
+import { SkyBackground } from '../decor';
 import { font, useStyles, useTheme } from '../theme';
 import {
   Avatar, Banner, Button, confirm, EmptyState, ErrorText, Field, formatDate, ListRow, SectionTitle,
@@ -48,11 +49,11 @@ export default function ItemDetailScreen({ route, navigation }) {
 
   if (!data) {
     return (
-      <View style={ui.screen}>
+      <SkyBackground>
         {error
           ? <EmptyState icon="alert-circle-outline" title="Couldn't load this item" subtitle={error} />
-          : <ActivityIndicator style={{ marginTop: 60 }} color={c.muted} />}
-      </View>
+          : <ActivityIndicator style={{ marginTop: 60 }} color={c.primary} />}
+      </SkyBackground>
     );
   }
 
@@ -77,11 +78,12 @@ export default function ItemDetailScreen({ route, navigation }) {
   };
 
   return (
+    <SkyBackground>
     <ScrollView style={ui.screen} contentContainerStyle={[ui.content, { paddingTop: 4 }]}>
       {justPosted && item.is_mine ? <Banner tone="success">Your post is live. Possible matches will appear below.</Banner> : null}
       {resolved ? <Banner tone="success" icon="checkmark-circle">This item has been returned to its owner.</Banner> : null}
 
-      <Thumb category={item.category} uri={imageUrl(item.image_url)} radius={16} iconSize={56} style={s.hero} />
+      <Thumb category={item.category} uri={imageUrl(item.image_url)} radius={24} iconSize={56} style={s.hero} />
 
       <View style={s.statusRow}>
         <StatusPill status={resolved ? 'resolved' : item.type} />
@@ -142,7 +144,7 @@ export default function ItemDetailScreen({ route, navigation }) {
           ) : (
             matches.map((m, i) => (
               <View key={m.id}>
-                {i > 0 ? <View style={[ui.divider, { marginLeft: 82 }]} /> : null}
+                {i > 0 ? <View style={{ height: 12 }} /> : null}
                 <ItemCard item={m} onPress={() => navigation.push('ItemDetail', { id: m.id })} />
               </View>
             ))
@@ -196,6 +198,7 @@ export default function ItemDetailScreen({ route, navigation }) {
         </>
       ) : null}
     </ScrollView>
+    </SkyBackground>
   );
 }
 

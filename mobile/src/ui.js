@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { categoryMeta } from './config';
-import { font, useStyles, useTheme } from './theme';
+import { BrandGradient } from './decor';
+import { font, softShadow, useStyles, useTheme } from './theme';
 
 // ---------- helpers ----------
 
@@ -64,7 +65,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
   const { colors: c } = useTheme();
   const ui = useUi();
   const [bg, fg, border] = {
-    primary: [c.primary, c.onPrimary, c.primary],
+    primary: ['transparent', c.onPrimary, 'transparent'], // drawn with the brand gradient below
     secondary: [c.surface, c.text, c.surface],
     outline: [c.card, c.text, c.border],
     ghost: ['transparent', c.primary, 'transparent'],
@@ -78,11 +79,13 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
       style={({ pressed, hovered }) => [
         ui.button, size === 'sm' && ui.buttonSm,
         { backgroundColor: bg, borderColor: border },
+        variant === 'primary' && ui.buttonPrimary,
         (disabled || loading) && { opacity: 0.45 },
-        (pressed || hovered) && { opacity: 0.88 },
+        (pressed || hovered) && { opacity: 0.9, transform: [{ translateY: 1 }] },
         style,
       ]}
     >
+      {variant === 'primary' ? <BrandGradient style={StyleSheet.absoluteFill} /> : null}
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
@@ -103,7 +106,7 @@ export function Field({ label, hint, style, icon, secure, ...inputProps }) {
   return (
     <View style={[{ marginBottom: 16 }, style]}>
       {label ? <Text style={ui.label}>{label}</Text> : null}
-      <View style={[ui.inputWrap, focused && { borderColor: c.primary, backgroundColor: c.card }, inputProps.multiline && { alignItems: 'flex-start' }]}>
+      <View style={[ui.inputWrap, focused && ui.inputFocused, inputProps.multiline && { alignItems: 'flex-start' }]}>
         {icon ? <Ionicons name={icon} size={18} color={focused ? c.primary : c.faint} style={{ marginRight: 10, marginTop: inputProps.multiline ? 13 : 0 }} /> : null}
         <TextInput
           placeholderTextColor={c.faint}
@@ -236,7 +239,7 @@ export function EmptyState({ icon, title, subtitle, action }) {
   const ui = useUi();
   return (
     <View style={ui.empty}>
-      <View style={ui.emptyIcon}><Ionicons name={icon} size={26} color={c.faint} /></View>
+      <View style={ui.emptyIcon}><Ionicons name={icon} size={28} color={c.primary} /></View>
       <Text style={ui.emptyTitle}>{title}</Text>
       {subtitle ? <Text style={ui.emptySubtitle}>{subtitle}</Text> : null}
       {action ? <View style={{ marginTop: 18 }}>{action}</View> : null}
@@ -255,65 +258,68 @@ export function SectionTitle({ children, right, style }) {
 }
 
 const uiStyles = (c) => ({
-  screen: { flex: 1, backgroundColor: c.bg },
-  content: { paddingHorizontal: 20, paddingBottom: 40, maxWidth: 680, width: '100%', alignSelf: 'center' },
+  // Screens sit on SkyBackground, so they are transparent
+  screen: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 20, paddingBottom: 48, maxWidth: 720, width: '100%', alignSelf: 'center' },
 
-  screenHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingBottom: 16 },
-  headerTitle: { fontFamily: font.bold, fontSize: 30, color: c.text, letterSpacing: -0.8 },
-  headerSubtitle: { fontFamily: font.medium, fontSize: 14, color: c.muted, marginBottom: 2 },
+  screenHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingBottom: 18 },
+  headerTitle: { fontFamily: font.extrabold, fontSize: 30, color: c.text, letterSpacing: -0.9 },
+  headerSubtitle: { fontFamily: font.medium, fontSize: 14, color: c.muted, marginBottom: 4 },
 
-  h2: { fontFamily: font.semibold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
-  body: { fontFamily: font.regular, fontSize: 15, color: c.text, lineHeight: 22 },
-  muted: { fontFamily: font.regular, fontSize: 14, color: c.muted, lineHeight: 20 },
-  label: { fontFamily: font.medium, fontSize: 13, color: c.text, marginBottom: 8 },
+  h2: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
+  body: { fontFamily: font.regular, fontSize: 15, color: c.text, lineHeight: 23 },
+  muted: { fontFamily: font.regular, fontSize: 14, color: c.muted, lineHeight: 21 },
+  label: { fontFamily: font.semibold, fontSize: 13, color: c.text, marginBottom: 8 },
   hint: { fontFamily: font.regular, fontSize: 12, color: c.muted, marginTop: 6, lineHeight: 17 },
 
-  button: { height: 48, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  buttonSm: { height: 38, borderRadius: 10, paddingHorizontal: 14 },
+  button: { height: 52, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, overflow: 'hidden' },
+  buttonPrimary: { borderWidth: 0, boxShadow: `0 10px 24px ${c.primary}40` },
+  buttonSm: { height: 40, borderRadius: 11, paddingHorizontal: 14 },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  buttonText: { fontFamily: font.semibold, fontSize: 15 },
+  buttonText: { fontFamily: font.bold, fontSize: 16 },
   buttonTextSm: { fontSize: 14 },
 
   inputWrap: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface,
-    borderWidth: 1, borderColor: c.surface, borderRadius: 12, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: c.card,
+    borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 16,
   },
+  inputFocused: { borderColor: c.primary, boxShadow: `0 0 0 4px ${c.primarySoft}` },
   // The wrapper shows focus, so hide the browser's own outline on web
-  input: { flex: 1, paddingVertical: 13, fontSize: 15, fontFamily: font.regular, color: c.text, ...(Platform.OS === 'web' && { outlineStyle: 'none' }) },
+  input: { flex: 1, paddingVertical: 14, fontSize: 15, fontFamily: font.regular, color: c.text, ...(Platform.OS === 'web' && { outlineStyle: 'none' }) },
 
   chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 15,
     borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.card, marginRight: 8, marginBottom: 8,
   },
-  chipSelected: { backgroundColor: c.text, borderColor: c.text },
-  chipText: { fontFamily: font.medium, fontSize: 13, color: c.text },
+  chipSelected: { backgroundColor: c.primary, borderColor: c.primary, boxShadow: `0 6px 14px ${c.primary}33` },
+  chipText: { fontFamily: font.semibold, fontSize: 13, color: c.text },
 
-  segmented: { flexDirection: 'row', backgroundColor: c.surface, borderRadius: 12, padding: 3 },
-  segment: { flex: 1, flexDirection: 'row', gap: 6, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 9 },
-  segmentActive: { backgroundColor: c.raised, boxShadow: `0 1px 3px ${c.shadow}, 0 1px 1px ${c.shadow}` },
-  segmentText: { fontFamily: font.medium, fontSize: 14, color: c.muted },
+  segmented: { flexDirection: 'row', backgroundColor: c.surface, borderRadius: 14, padding: 4 },
+  segment: { flex: 1, flexDirection: 'row', gap: 6, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
+  segmentActive: { backgroundColor: c.raised, ...softShadow(c, 2, 8) },
+  segmentText: { fontFamily: font.semibold, fontSize: 14, color: c.muted },
 
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, height: 22, borderRadius: 6, alignSelf: 'flex-start' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, height: 24, borderRadius: 999, alignSelf: 'flex-start' },
   pillDot: { width: 6, height: 6, borderRadius: 3 },
-  pillText: { fontFamily: font.semibold, fontSize: 12 },
+  pillText: { fontFamily: font.bold, fontSize: 12 },
 
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, paddingHorizontal: 18 },
   listRowBorder: { borderBottomWidth: 1, borderBottomColor: c.divider },
-  listLabel: { flex: 1, fontFamily: font.regular, fontSize: 15, lineHeight: 21 },
+  listLabel: { flex: 1, fontFamily: font.medium, fontSize: 15, lineHeight: 21 },
   listValue: { fontFamily: font.regular, fontSize: 14, color: c.muted, maxWidth: '55%' },
-  group: { backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, overflow: 'hidden' },
+  group: { backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.divider, overflow: 'hidden', ...softShadow(c) },
 
-  card: { backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, padding: 16 },
-  banner: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 12, marginBottom: 16 },
+  card: { backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.divider, padding: 18, ...softShadow(c) },
+  banner: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 16, marginBottom: 16 },
   bannerText: { flex: 1, fontFamily: font.medium, fontSize: 14, lineHeight: 20 },
 
   empty: { alignItems: 'center', paddingVertical: 56, paddingHorizontal: 24 },
-  emptyIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { fontFamily: font.semibold, fontSize: 16, color: c.text, marginTop: 16 },
-  emptySubtitle: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 6, textAlign: 'center', lineHeight: 20, maxWidth: 300 },
+  emptyIcon: { width: 64, height: 64, borderRadius: 20, backgroundColor: c.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontFamily: font.bold, fontSize: 17, color: c.text, marginTop: 16 },
+  emptySubtitle: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 6, textAlign: 'center', lineHeight: 21, maxWidth: 300 },
 
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 28, marginBottom: 12 },
-  sectionTitle: { fontFamily: font.semibold, fontSize: 17, color: c.text, letterSpacing: -0.2 },
-  sectionRight: { fontFamily: font.regular, fontSize: 13, color: c.muted },
+  sectionTitle: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
+  sectionRight: { fontFamily: font.medium, fontSize: 13, color: c.muted },
   divider: { height: 1, backgroundColor: c.divider },
 });

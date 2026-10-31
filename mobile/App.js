@@ -6,7 +6,10 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import {
+  useFonts, PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { AuthProvider, useAuth } from './src/AuthContext';
 import { font, ThemeProvider, useTheme } from './src/theme';
 import AuthScreen from './src/screens/AuthScreen';
@@ -30,10 +33,10 @@ function Tabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false, // each tab draws its own large title
-        tabBarActiveTintColor: c.text,
+        tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.faint,
-        tabBarStyle: { backgroundColor: c.bg, borderTopColor: c.divider, height: 64, paddingTop: 6 },
-        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 11 },
+        tabBarStyle: { backgroundColor: c.card, borderTopColor: c.divider, height: 66, paddingTop: 6, boxShadow: `0 -6px 24px ${c.shadow}` },
+        tabBarLabelStyle: { fontFamily: font.semibold, fontSize: 11 },
       }}
     >
       <Tab.Screen name="Browse" component={FeedScreen} options={{ title: 'Campus Lost & Found', tabBarLabel: 'Home', tabBarIcon: tabIcon('home') }} />
@@ -57,7 +60,7 @@ function Root() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: c.bg },
+        headerStyle: { backgroundColor: c.sky[0] },
         headerShadowVisible: false,
         headerTintColor: c.text,
         headerTitleStyle: { fontFamily: font.semibold, fontSize: 16 },
@@ -97,7 +100,10 @@ function ThemedApp() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold });
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
+  });
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>

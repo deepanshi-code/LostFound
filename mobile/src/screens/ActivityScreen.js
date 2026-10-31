@@ -3,7 +3,8 @@ import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import ItemCard from '../ItemCard';
-import { font, useStyles, useTheme } from '../theme';
+import { SkyBackground } from '../decor';
+import { font, softShadow, useStyles, useTheme } from '../theme';
 import { Banner, EmptyState, ErrorText, ScreenHeader, Segmented, StatusPill, Thumb, timeAgo, useUi } from '../ui';
 
 export default function ActivityScreen({ navigation }) {
@@ -66,12 +67,13 @@ export default function ActivityScreen({ navigation }) {
     style: ui.screen,
     contentContainerStyle: ui.content,
     ListHeaderComponent: header,
-    ItemSeparatorComponent: () => <View style={[ui.divider, { marginLeft: 82 }]} />,
+    ItemSeparatorComponent: () => <View style={{ height: 12 }} />,
     refreshControl: <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.muted} />,
   };
 
   if (tab === 'posts') {
     return (
+      <SkyBackground>
       <FlatList
         {...common}
         data={posts}
@@ -89,16 +91,18 @@ export default function ActivityScreen({ navigation }) {
           <EmptyState icon="document-text-outline" title="No posts yet" subtitle="Items you report as lost or found will show up here." />
         ) : null}
       />
+      </SkyBackground>
     );
   }
 
   return (
+    <SkyBackground>
     <FlatList
       {...common}
       data={claims}
       keyExtractor={(cl) => `c${cl.id}`}
       renderItem={({ item: cl }) => (
-        <Pressable onPress={() => open(cl.item_id)} style={({ pressed, hovered }) => [s.row, (pressed || hovered) && { backgroundColor: c.surface }]}>
+        <Pressable onPress={() => open(cl.item_id)} style={({ pressed, hovered }) => [s.row, (pressed || hovered) && { borderColor: c.primarySoft }]}>
           <Thumb category={cl.item_category} size={68} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={s.top}>
@@ -117,13 +121,14 @@ export default function ActivityScreen({ navigation }) {
         <EmptyState icon="chatbubble-ellipses-outline" title="No responses yet" subtitle="When you claim an item or tell an owner you found theirs, it shows up here." />
       ) : null}
     />
+    </SkyBackground>
   );
 }
 
 const makeStyles = (c) => ({
-  row: { flexDirection: 'row', gap: 14, paddingVertical: 14, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 12 },
+  row: { flexDirection: 'row', gap: 14, padding: 12, borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: c.divider, ...softShadow(c, 6, 20) },
   top: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  title: { flex: 1, fontFamily: font.semibold, fontSize: 15, color: c.text },
+  title: { flex: 1, fontFamily: font.bold, fontSize: 16, color: c.text },
   time: { fontFamily: font.regular, fontSize: 12, color: c.faint },
   meta: { fontFamily: font.regular, fontSize: 13, color: c.muted, marginTop: 4 },
   contact: { fontFamily: font.medium, fontSize: 13, color: c.primary, marginTop: 8 },

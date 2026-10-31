@@ -4,8 +4,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { API_URL } from '../config';
+import { BrandGradient, SkyBackground } from '../decor';
 import { font, useStyles, useTheme } from '../theme';
-import { Avatar, ListRow, ScreenHeader, SectionTitle, Segmented, useUi } from '../ui';
+import { ListRow, ScreenHeader, SectionTitle, Segmented, useUi } from '../ui';
 
 const STEPS = [
   ['add-circle-outline', 'Report what you lost or found, with a photo if you can.'],
@@ -33,25 +34,25 @@ export default function ProfileScreen() {
   }, []));
 
   return (
+    <SkyBackground>
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
       <ScreenHeader title="Profile" />
 
-      <View style={s.account}>
-        <Avatar name={user.name} size={60} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.name}>{user.name}</Text>
-          <Text style={ui.muted} numberOfLines={1}>{user.email}</Text>
-          {user.phone ? <Text style={ui.muted}>{user.phone}</Text> : null}
+      <BrandGradient style={s.accountCard}>
+        <View style={s.account}>
+          <View style={s.avatar}><Text style={s.avatarText}>{user.name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{user.name}</Text>
+            <Text style={s.email} numberOfLines={1}>{user.email}</Text>
+            {user.phone ? <Text style={s.email}>{user.phone}</Text> : null}
+          </View>
         </View>
-      </View>
-
-      <View style={s.stats}>
-        <Stat value={stats?.posts} label="Posts" s={s} />
-        <View style={s.statDivider} />
-        <Stat value={stats?.returned} label="Returned" s={s} />
-        <View style={s.statDivider} />
-        <Stat value={stats?.responses} label="Responses" s={s} />
-      </View>
+        <View style={s.stats}>
+          <Stat value={stats?.posts} label="Posts" s={s} />
+          <Stat value={stats?.returned} label="Returned" s={s} />
+          <Stat value={stats?.responses} label="Responses" s={s} />
+        </View>
+      </BrandGradient>
 
       <SectionTitle>Appearance</SectionTitle>
       <Segmented
@@ -77,6 +78,7 @@ export default function ProfileScreen() {
       </View>
       <Text style={[ui.hint, { textAlign: 'center', marginTop: 20 }]}>Connected to {API_URL}</Text>
     </ScrollView>
+    </SkyBackground>
   );
 }
 
@@ -90,11 +92,20 @@ function Stat({ value, label, s }) {
 }
 
 const makeStyles = (c) => ({
-  account: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
-  name: { fontFamily: font.semibold, fontSize: 19, color: c.text, letterSpacing: -0.3, marginBottom: 2 },
-  stats: { flexDirection: 'row', borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 14 },
-  stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontFamily: font.bold, fontSize: 20, color: c.text },
-  statLabel: { fontFamily: font.regular, fontSize: 12, color: c.muted, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: c.divider },
+  accountCard: { borderRadius: 28, padding: 20, boxShadow: `0 16px 36px ${c.primary}40` },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  avatar: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontFamily: font.bold, fontSize: 21, color: '#fff' },
+  name: { fontFamily: font.extrabold, fontSize: 20, color: '#fff', letterSpacing: -0.4, marginBottom: 2 },
+  email: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  stats: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  stat: {
+    flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+  },
+  statValue: { fontFamily: font.extrabold, fontSize: 20, color: '#fff' },
+  statLabel: { fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 });

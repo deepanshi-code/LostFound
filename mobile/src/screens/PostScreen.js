@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../api';
 import { CATEGORIES } from '../config';
+import { SkyBackground } from '../decor';
 import { font, useStyles, useTheme } from '../theme';
 import { Button, Chip, ErrorText, Field, ScreenHeader, Segmented, useUi } from '../ui';
 
@@ -76,9 +77,11 @@ export default function PostScreen({ navigation, route }) {
   }
 
   return (
+    <SkyBackground>
     <ScrollView style={ui.screen} contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
       <ScreenHeader title="Report an item" subtitle="Takes about a minute" />
 
+      <View style={[ui.card, { marginBottom: 20 }]}>
       <Segmented
         options={[{ value: 'lost', label: 'I lost something' }, { value: 'found', label: 'I found something' }]}
         value={form.type}
@@ -143,9 +146,12 @@ export default function PostScreen({ navigation, route }) {
         </View>
       )}
 
+      </View>
+
       <ErrorText>{error}</ErrorText>
       <Button title={isLost ? 'Post lost item' : 'Post found item'} onPress={submit} loading={busy} />
     </ScrollView>
+    </SkyBackground>
   );
 }
 
