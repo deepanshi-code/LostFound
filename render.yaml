@@ -31,7 +31,9 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         value: item-photos
-      # Email: fill these in the Render dashboard (never commit them)
+      # Email: Render free blocks SMTP ports, so use Brevo (HTTPS). Fill these in the dashboard, never commit them.
+      - key: BREVO_API_KEY
+        sync: false
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT

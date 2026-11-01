@@ -74,8 +74,9 @@ Copy `backend/.env.example` to `backend/.env`:
 | `PORT` | API port (default 4000) |
 | `JWT_SECRET` | Secret used to sign login tokens. **Must** be set to a long random value anywhere other than your laptop. |
 | `ALLOWED_EMAIL_DOMAIN` | Only these email domains can sign up, comma-separated, e.g. `geu.ac.in,gehu.ac.in`. The match is exact: subdomains and look-alikes are rejected. Empty means anyone can sign up. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Mail server for verification and reset codes. If empty, codes are printed in the backend terminal. |
-| `MAIL_FROM` | Optional sender, e.g. `Campus Lost & Found <you@gmail.com>` |
+| `BREVO_API_KEY` | Sends codes through Brevo's HTTPS API (free: 300 emails a day). Needed on Render's free plan, which blocks SMTP. Takes priority over SMTP. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Mail server for verification and reset codes (fine locally). If no email is configured, codes are printed in the backend terminal. |
+| `MAIL_FROM` | Sender, e.g. `Campus Lost & Found <you@gmail.com>`. With Brevo it must be a sender address verified in Brevo. |
 
 ### Email verification
 

@@ -1,12 +1,22 @@
 import nodemailer from 'nodemailer';
 
-// Sends real email when SMTP_* is configured in .env (Gmail, Brevo, Outlook, your college's SMTP...).
-// Without it, emails are printed to this terminal instead, so development works offline.
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-const MAIL_FROM = process.env.MAIL_FROM || (SMTP_USER ? `Campus Lost & Found <${SMTP_USER}>` : 'Campus Lost & Found');
+// How codes are delivered, in order of preference:
+// 1. BREVO_API_KEY: Brevo's HTTPS API. Use this on hosts that block SMTP ports (e.g. Render's free plan).
+// 2. SMTP_HOST/SMTP_USER/SMTP_PASS: any SMTP server, e.g. Gmail with an App Password (fine locally).
+// 3. Neither: codes are printed to this terminal, so development works offline.
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, BREVO_API_KEY } = process.env;
 const port = Number(SMTP_PORT) || 587;
 
-const transporter = SMTP_HOST && SMTP_USER && SMTP_PASS
+// MAIL_FROM may be "Name <address>" or just an address. With Brevo it must be a verified sender.
+const fromRaw = process.env.MAIL_FROM || (SMTP_USER ? `Campus Lost & Found <${SMTP_USER}>` : '');
+const fromMatch = fromRaw.match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
+const sender = fromMatch
+  ? { name: fromMatch[1] || 'Campus Lost & Found', email: fromMatch[2] }
+  : { name: 'Campus Lost & Found', email: fromRaw.trim() };
+
+const mode = BREVO_API_KEY ? 'brevo' : SMTP_HOST && SMTP_USER && SMTP_PASS ? 'smtp' : 'console';
+
+const transporter = mode === 'smtp'
   ? nodemailer.createTransport({
       host: SMTP_HOST,
       port,
@@ -15,10 +25,21 @@ const transporter = SMTP_HOST && SMTP_USER && SMTP_PASS
     })
   : null;
 
-// Logs in to the SMTP server and explains the most common failures in plain words
+// Checks the configured delivery method and explains the most common failures in plain words
 export async function smtpStatus() {
-  if (!transporter) {
-    return { ok: false, message: 'SMTP is not configured (SMTP_HOST, SMTP_USER and SMTP_PASS in backend/.env are empty).' };
+  if (mode === 'console') {
+    return { ok: false, message: 'Email is not configured (set BREVO_API_KEY, or SMTP_HOST/SMTP_USER/SMTP_PASS). Codes are printed instead.' };
+  }
+  if (mode === 'brevo') {
+    if (!sender.email) return { ok: false, message: 'MAIL_FROM is empty. Set it to a sender address you verified in Brevo.' };
+    try {
+      const res = await fetch('https://api.brevo.com/v3/account', { headers: { 'api-key': BREVO_API_KEY, accept: 'application/json' } });
+      if (res.status === 401) return { ok: false, message: 'Brevo rejected the API key. Create a new one under SMTP & API → API Keys.' };
+      if (!res.ok) return { ok: false, message: `Brevo account check failed (${res.status}).` };
+      return { ok: true, message: `Brevo ready (sending as ${sender.email})` };
+    } catch (e) {
+      return { ok: false, message: `Could not reach Brevo: ${e.message}` };
+    }
   }
   try {
     await transporter.verify();
@@ -28,49 +49,54 @@ export async function smtpStatus() {
       e.code === 'EAUTH' || /535|Username and Password/i.test(e.message)
         ? 'Login rejected. For Gmail, SMTP_PASS must be a 16-character App Password, not your normal password.'
         : e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION' || e.code === 'ESOCKET'
-          ? `Could not reach ${SMTP_HOST}:${port}. The network (e.g. campus Wi-Fi) may block email ports; try a mobile hotspot.`
+          ? `Could not reach ${SMTP_HOST}:${port}. The network or host may block email ports (Render's free plan does; use BREVO_API_KEY there).`
           : e.message;
     return { ok: false, message: `SMTP login failed: ${hint}` };
   }
 }
 
 if (process.argv[1]?.endsWith('server.js')) {
-  if (transporter) {
-    smtpStatus().then((s) => (s.ok ? console.log(`[mail] ${s.message}`) : console.error(`[mail] ${s.message}`)));
-  } else {
-    console.warn('[mail] SMTP not configured. Verification codes will be printed here instead of emailed.');
-  }
+  if (mode === 'console') console.warn('[mail] Email not configured. Verification codes will be printed here instead of emailed.');
+  else smtpStatus().then((s) => (s.ok ? console.log(`[mail] ${s.message}`) : console.error(`[mail] ${s.message}`)));
 }
 
 const PURPOSE = {
-  verify: { subject: 'Verify your email', heading: 'Confirm your email', line: 'Use this code to finish creating your account:' },
-  reset: { subject: 'Reset your password', heading: 'Reset your password', line: 'Use this code to choose a new password:' },
+  verify: { heading: 'Confirm your email', line: 'Use this code to finish creating your account:' },
+  reset: { heading: 'Reset your password', line: 'Use this code to choose a new password:' },
 };
 
 export async function sendCode(to, name, code, purpose) {
   const p = PURPOSE[purpose];
+  const subject = `${code} is your Campus Lost & Found code`;
   const text = `Hi ${name},\n\n${p.line}\n\n${code}\n\nIt expires in 10 minutes. If you didn't ask for this, ignore this email.\n\nCampus Lost & Found`;
+  const html = `
+    <div style="background:#F3F6FD;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
+      <div style="max-width:440px;margin:auto;background:#ffffff;border-radius:20px;padding:28px;color:#0E1530">
+        <div style="font-size:15px;font-weight:bold;color:#2F5BFF">Campus Lost &amp; Found</div>
+        <h2 style="margin:16px 0 8px;font-size:22px">${p.heading}</h2>
+        <p style="margin:0 0 18px;color:#59627D;font-size:15px">Hi ${escapeHtml(name)}, ${p.line.toLowerCase()}</p>
+        <div style="font-size:34px;font-weight:bold;letter-spacing:10px;background:#EAEFFF;color:#2F5BFF;
+                    padding:16px;border-radius:14px;text-align:center">${code}</div>
+        <p style="margin:18px 0 0;color:#98A0B8;font-size:13px">It expires in 10 minutes. If you didn't ask for this, you can ignore this email.</p>
+      </div>
+    </div>`;
 
-  if (!transporter) {
-    console.log(`\n[mail:dev] To: ${to} | ${p.subject} | CODE: ${code}\n`);
+  if (mode === 'console') {
+    console.log(`\n[mail:dev] To: ${to} | ${p.heading} | CODE: ${code}\n`);
     return;
   }
 
-  await transporter.sendMail({
-    from: MAIL_FROM,
-    to,
-    subject: `${code} is your Campus Lost & Found code`,
-    text,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:440px;margin:auto;padding:24px;color:#16181D">
-        <div style="font-size:32px">🔎</div>
-        <h2 style="margin:8px 0">${p.heading}</h2>
-        <p>Hi ${escapeHtml(name)}, ${p.line.toLowerCase()}</p>
-        <div style="font-size:34px;font-weight:bold;letter-spacing:8px;background:#ECEAFE;color:#5B4CF0;
-                    padding:16px;border-radius:12px;text-align:center">${code}</div>
-        <p style="color:#646B78;font-size:13px">It expires in 10 minutes. If you didn't ask for this, you can ignore this email.</p>
-      </div>`,
-  });
+  if (mode === 'brevo') {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ sender, to: [{ email: to, name }], subject, textContent: text, htmlContent: html }),
+    });
+    if (!res.ok) throw new Error(`Brevo send failed (${res.status}): ${await res.text()}`);
+    return;
+  }
+
+  await transporter.sendMail({ from: `${sender.name} <${sender.email}>`, to, subject, text, html });
 }
 
 function escapeHtml(s) {
