@@ -24,7 +24,12 @@ if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PRO
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// Reports which storage is in use (no addresses or keys), handy for checking a deployment
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  db: usingHostedDb ? 'hosted-postgres' : 'local-pglite',
+  photos: usingCloudStorage ? 'supabase' : 'local',
+}));
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/claims', claimRoutes);
