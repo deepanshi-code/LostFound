@@ -6,6 +6,7 @@ import itemRoutes from './routes/items.js';
 import claimRoutes from './routes/claims.js';
 import { initDb, one, usingHostedDb } from './db.js';
 import { UPLOAD_DIR, usingCloudStorage } from './storage.js';
+import { mailInfo } from './mailer.js';
 
 await initDb();
 console.log(`[db] ${usingHostedDb ? 'Hosted Postgres (DATABASE_URL)' : 'Local PGlite in backend/data/pgdata'}`);
@@ -29,6 +30,7 @@ app.get('/api/health', (_req, res) => res.json({
   ok: true,
   db: usingHostedDb ? 'hosted-postgres' : 'local-pglite',
   photos: usingCloudStorage ? 'supabase' : 'local',
+  email: mailInfo,
 }));
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);

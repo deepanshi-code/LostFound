@@ -55,9 +55,16 @@ export async function smtpStatus() {
   }
 }
 
+// Result of the startup check, shown (without any secrets) by /api/health
+export const mailInfo = { mode, ready: false, problem: mode === 'console' ? 'not configured' : 'checking' };
+
 if (process.argv[1]?.endsWith('server.js')) {
   if (mode === 'console') console.warn('[mail] Email not configured. Verification codes will be printed here instead of emailed.');
-  else smtpStatus().then((s) => (s.ok ? console.log(`[mail] ${s.message}`) : console.error(`[mail] ${s.message}`)));
+  else smtpStatus().then((s) => {
+    mailInfo.ready = s.ok;
+    mailInfo.problem = s.ok ? null : s.message;
+    s.ok ? console.log(`[mail] ${s.message}`) : console.error(`[mail] ${s.message}`);
+  });
 }
 
 const PURPOSE = {
