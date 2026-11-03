@@ -6,21 +6,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { CATEGORIES } from '../config';
-import { BrandGradient, NoticeTicker, SkyBackground } from '../decor';
-import GridCard from '../GridCard';
+import GridCard, { GridCardSkeleton } from '../GridCard';
 import { font, useStyles, useTheme } from '../theme';
-import { Chip, EmptyState, ErrorText, Segmented, SectionTitle, useUi } from '../ui';
+import { Avatar, Chip, EmptyState, ErrorText, useUi } from '../ui';
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
-
-const TIPS = [
-  'Found something? Tap Report so its owner can find it',
-  'Owners must describe a hidden detail before you hand an item over',
-  'Meet in a public place on campus for handovers',
-];
+const ALL = { name: null, label: 'All', icon: 'apps-outline' };
 
 export default function FeedScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -83,25 +73,14 @@ export default function FeedScreen({ navigation, route }) {
 
   const filtered = type !== 'all' || category || query.trim();
   const clearFilters = () => { setType('all'); setCategory(null); setQuery(''); };
-  const initials = user.name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
   const header = (
-    <View style={{ paddingTop: insets.top + 12 }}>
-      <BrandGradient style={s.hero}>
-        <View style={s.heroTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.hello}>{greeting()}, {user.name.split(' ')[0]}</Text>
-            <Text style={s.heroTitle}>What are we finding today?</Text>
-          </View>
-          <Pressable onPress={() => navigation.navigate('Profile')} style={s.avatar} accessibilityLabel="Profile">
-            <Text style={s.avatarText}>{initials}</Text>
-          </Pressable>
-        </View>
-
+    <View style={{ paddingTop: insets.top + 14 }}>
+      <View style={s.topRow}>
         <View style={s.search}>
-          <Ionicons name="search-outline" size={18} color={c.faint} />
+          <Ionicons name="search" size={18} color={c.text} />
           <TextInput
-            value={query} onChangeText={setQuery} placeholder="Search items, places…" placeholderTextColor={c.faint}
+            value={query} onChangeText={setQuery} placeholder="Search items or places" placeholderTextColor={c.muted}
             returnKeyType="search" style={s.searchInput}
           />
           {query ? (
@@ -110,61 +89,59 @@ export default function FeedScreen({ navigation, route }) {
             </Pressable>
           ) : null}
         </View>
-
-        <View style={s.stats}>
-          <Stat value={stats?.lost_open} label="Lost" icon="help-buoy-outline" s={s} />
-          <Stat value={stats?.found_open} label="Found" icon="hand-left-outline" s={s} />
-          <Stat value={stats?.reunited} label="Returned" icon="checkmark-done-outline" s={s} />
-        </View>
-      </BrandGradient>
-
-      <View style={{ marginTop: 16 }}>
-        <NoticeTicker label="TIP" messages={TIPS} />
+        <Pressable onPress={() => navigation.navigate('Profile')} accessibilityLabel="Profile" style={s.avatar}>
+          <Avatar name={user.name} size={44} />
+        </Pressable>
       </View>
 
-      <View style={{ marginTop: 18 }}>
-        <Segmented
-          options={[{ value: 'all', label: 'All' }, { value: 'lost', label: 'Lost' }, { value: 'found', label: 'Found' }]}
-          value={type}
-          onChange={setType}
-        />
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chips} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 6 }}>
-        <Chip label="All categories" icon="apps-outline" selected={!category} onPress={() => setCategory(null)} />
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.name} label={cat.name} icon={cat.icon} color={cat.color} selected={category === cat.name}
-            onPress={() => setCategory(category === cat.name ? null : cat.name)}
-          />
-        ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catContent}>
+        {[ALL, ...CATEGORIES.map((cat) => ({ name: cat.name, label: cat.name, icon: cat.icon }))].map((cat) => {
+          const active = category === cat.name;
+          return (
+            <Pressable key={cat.label} onPress={() => setCategory(cat.name)} style={({ hovered }) => [s.cat, (active || hovered) && { opacity: 1 }]}>
+              <Ionicons name={cat.icon} size={24} color={active ? c.text : c.muted} />
+              <Text style={[s.catLabel, active && { color: c.text, fontFamily: font.semibold }]} numberOfLines={1}>{cat.label}</Text>
+              <View style={[s.underline, active && { backgroundColor: c.text }]} />
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
-      <SectionTitle
-        style={{ marginTop: 8, marginBottom: 14 }}
-        right={loaded ? `${items.length} ${items.length === 1 ? 'item' : 'items'}` : null}
-      >
-        {filtered ? 'Results' : 'Recently reported'}
-      </SectionTitle>
+      <View style={s.filterRow}>
+        <View style={s.types}>
+          {[['all', 'All'], ['lost', 'Lost'], ['found', 'Found']].map(([value, label]) => (
+            <Pressable key={value} onPress={() => setType(value)} style={[s.type, type === value && s.typeActive]}>
+              <Text style={[s.typeText, type === value && { color: c.bg }]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {loaded ? <Text style={s.count}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text> : null}
+      </View>
+
+      <Text style={s.heading}>{filtered ? 'Results' : 'Recently reported'}</Text>
+      {stats && !filtered ? (
+        <Text style={s.sub}>{stats.lost_open} still lost · {stats.found_open} waiting for their owner · {stats.reunited} returned</Text>
+      ) : <View style={{ height: 14 }} />}
       <ErrorText>{error}</ErrorText>
     </View>
   );
 
   return (
-    <SkyBackground>
+    <View style={[ui.screen, { backgroundColor: c.bg }]}>
       <FlatList
         key={`grid-${cols}`} // numColumns can't change on the fly, so remount when it does
-        style={ui.screen}
-        contentContainerStyle={[ui.content, { maxWidth: 1120, paddingBottom: 110 }]}
-        data={items}
+        contentContainerStyle={[ui.content, { maxWidth: 1240, paddingBottom: 120 }]}
+        data={loaded ? items : Array.from({ length: cols * 2 }, (_, i) => ({ id: `sk${i}`, skeleton: true }))}
         numColumns={cols}
-        columnWrapperStyle={{ gap: 14 }}
+        columnWrapperStyle={{ gap: 18 }}
         keyExtractor={(i) => String(i.id)}
         ListHeaderComponent={header}
-        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 28 }} />}
         renderItem={({ item, index }) => (
           <View style={{ flex: 1 / cols }}>
-            <GridCard item={item} index={index} onPress={() => navigation.navigate('ItemDetail', { id: item.id })} />
+            {item.skeleton ? <GridCardSkeleton /> : (
+              <GridCard item={item} index={index} onPress={() => navigation.navigate('ItemDetail', { id: item.id })} />
+            )}
           </View>
         )}
         ListEmptyComponent={
@@ -182,44 +159,36 @@ export default function FeedScreen({ navigation, route }) {
             />
           )
         }
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.muted} />}
         keyboardShouldPersistTaps="handled"
       />
-    </SkyBackground>
-  );
-}
-
-function Stat({ value, label, icon, s }) {
-  return (
-    <View style={s.stat}>
-      <Ionicons name={icon} size={16} color="rgba(255,255,255,0.85)" />
-      <Text style={s.statValue}>{value ?? '–'}</Text>
-      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
 
 const makeStyles = (c) => ({
-  hero: { borderRadius: 28, padding: 20, paddingTop: 22, overflow: 'hidden', boxShadow: `0 16px 36px ${c.primary}40` },
-  heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  hello: { fontFamily: font.medium, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
-  heroTitle: { fontFamily: font.extrabold, fontSize: 26, lineHeight: 32, color: '#fff', letterSpacing: -0.8, marginTop: 4 },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { fontFamily: font.bold, fontSize: 15, color: '#fff' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   search: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.card, borderRadius: 16,
-    paddingHorizontal: 16, marginTop: 20, boxShadow: '0 6px 16px rgba(10, 20, 60, 0.18)',
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, paddingHorizontal: 20,
+    backgroundColor: c.card, borderRadius: 999, borderWidth: 1, borderColor: c.divider,
+    boxShadow: '0 3px 12px rgba(0,0,0,0.08)',
   },
-  searchInput: { flex: 1, paddingVertical: 14, fontSize: 15, fontFamily: font.regular, color: c.text, ...(Platform.OS === 'web' && { outlineStyle: 'none' }) },
-  stats: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  stat: {
-    flex: 1, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+  searchInput: {
+    flex: 1, height: '100%', fontFamily: font.semibold, fontSize: 15, color: c.text,
+    ...(Platform.OS === 'web' && { outlineStyle: 'none' }),
   },
-  statValue: { fontFamily: font.extrabold, fontSize: 22, color: '#fff', marginTop: 6, letterSpacing: -0.5 },
-  statLabel: { fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)' },
-  chips: { marginTop: 12, marginHorizontal: -20 },
+  avatar: { borderRadius: 999 },
+  catBar: { marginTop: 18, marginHorizontal: -20, borderBottomWidth: 1, borderBottomColor: c.divider },
+  catContent: { paddingHorizontal: 20, gap: 26 },
+  cat: { alignItems: 'center', paddingTop: 6, opacity: 0.75, minWidth: 52 },
+  catLabel: { fontFamily: font.medium, fontSize: 12, color: c.muted, marginTop: 6, marginBottom: 10 },
+  underline: { height: 2, alignSelf: 'stretch', borderRadius: 1, backgroundColor: 'transparent' },
+  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
+  types: { flexDirection: 'row', gap: 8 },
+  type: { height: 34, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: c.border, justifyContent: 'center' },
+  typeActive: { backgroundColor: c.text, borderColor: c.text },
+  typeText: { fontFamily: font.semibold, fontSize: 13, color: c.text },
+  count: { fontFamily: font.regular, fontSize: 13, color: c.muted },
+  heading: { fontFamily: font.bold, fontSize: 22, color: c.text, letterSpacing: -0.4, marginTop: 26 },
+  sub: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 4, marginBottom: 18 },
 });

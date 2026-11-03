@@ -2,62 +2,62 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { StyleSheet, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// "Campus sky": airy blue-white surfaces, a blue→violet brand gradient, soft shadows instead of borders.
-// Muted red/green are used only for Lost/Found status.
+// Calm, photo-first palette (Airbnb / Apple feel): white space, refined greys, one brand blue.
+// The brand gradient is kept only for primary actions. Muted red/green are used only for Lost/Found status.
 const light = {
-  bg: '#F3F6FD',
-  sky: ['#E3ECFF', '#F1F5FE', '#F8FAFF'], // page background gradient, top to bottom
-  surface: '#EDF1FA',     // inputs, thumbnails, segmented control
+  bg: '#FFFFFF',
+  sky: ['#FFFFFF', '#FFFFFF', '#FFFFFF'], // page background (flat on purpose)
+  surface: '#F7F7F7',     // inputs, skeletons, segmented control
   card: '#FFFFFF',
   raised: '#FFFFFF',      // selected segment
-  border: '#E2E8F4',
-  divider: '#EDF0F7',
-  text: '#0E1530',
-  muted: '#59627D',
-  faint: '#98A0B8',
+  border: '#DDDDDD',
+  divider: '#EBEBEB',
+  text: '#222222',
+  muted: '#6A6A6A',
+  faint: '#929292',
   primary: '#2F5BFF',
-  primaryEnd: '#6A45F5',  // brand gradient end
-  primarySoft: '#EAEFFF',
+  primaryEnd: '#5B3DF5',  // brand gradient end
+  primarySoft: '#EEF2FF',
   onPrimary: '#FFFFFF',
-  line: '#A9BDF2',        // illustration strokes
-  lost: '#C93A32',
-  lostSoft: '#FDEEEC',
-  found: '#18804F',
-  foundSoft: '#E7F6EE',
-  warn: '#9A5B06',
-  warnSoft: '#FCF4E6',
-  danger: '#C93A32',
-  dangerSoft: '#FDEEEC',
-  shadow: 'rgba(36, 64, 140, 0.10)',
-  glass: 'rgba(255, 255, 255, 0.82)',
+  line: '#C9D3F0',        // illustration strokes
+  lost: '#C13515',
+  lostSoft: '#FFF1EC',
+  found: '#008A05',
+  foundSoft: '#EBF7EC',
+  warn: '#8F5A00',
+  warnSoft: '#FFF6E5',
+  danger: '#C13515',
+  dangerSoft: '#FFF1EC',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  glass: 'rgba(255, 255, 255, 0.94)',
 };
 
 const dark = {
-  bg: '#090D1A',
-  sky: ['#101A3A', '#0B1124', '#090D1A'],
-  surface: '#161D31',
-  card: '#10162A',
-  raised: '#28304A',
-  border: '#232B44',
-  divider: '#1A2138',
-  text: '#EEF1FA',
-  muted: '#A2AAC4',
-  faint: '#6A7392',
-  primary: '#5B7FFF',
+  bg: '#121212',
+  sky: ['#121212', '#121212', '#121212'],
+  surface: '#1F1F1F',
+  card: '#1A1A1A',
+  raised: '#2C2C2C',
+  border: '#3A3A3A',
+  divider: '#272727',
+  text: '#F7F7F7',
+  muted: '#B0B0B0',
+  faint: '#7D7D7D',
+  primary: '#6B8AFF',
   primaryEnd: '#8B6CFF',
-  primarySoft: '#1B2350',
+  primarySoft: '#1E2440',
   onPrimary: '#FFFFFF',
-  line: '#334477',
-  lost: '#FF8F87',
-  lostSoft: '#2C1718',
-  found: '#6CD49A',
-  foundSoft: '#12271D',
-  warn: '#EDB767',
+  line: '#3A4566',
+  lost: '#FF8A70',
+  lostSoft: '#2D1A15',
+  found: '#5FD068',
+  foundSoft: '#14261A',
+  warn: '#F0B85C',
   warnSoft: '#2A2213',
-  danger: '#FF8F87',
-  dangerSoft: '#2C1718',
-  shadow: 'rgba(0, 0, 0, 0.45)',
-  glass: 'rgba(16, 22, 42, 0.86)',
+  danger: '#FF8A70',
+  dangerSoft: '#2D1A15',
+  shadow: 'rgba(0, 0, 0, 0.5)',
+  glass: 'rgba(26, 26, 26, 0.94)',
 };
 
 // Plus Jakarta Sans, loaded in App.js. Custom fonts carry their own weight, so use fontFamily, not fontWeight.

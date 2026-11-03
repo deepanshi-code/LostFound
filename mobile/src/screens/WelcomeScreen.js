@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BrandMark, FloatingScene, SkyBackground } from '../decor';
+import { BrandMark } from '../decor';
+import { MatchScene, PhotoCollage, PrivacyScene } from '../welcomeScenes';
 import { font, useStyles, useTheme } from '../theme';
 import { Button } from '../ui';
 
-// [centre icon, floating bubbles [icon, colour], title, text]
+// [scene, title, text]
 const SLIDES = [
-  ['search', [['key-outline', '#EAB308'], ['glasses-outline', '#0EA5E9'], ['headset-outline', '#A259FF'], ['card-outline', '#3B82F6'], ['umbrella-outline', '#6366F1']],
-    'Lost something on campus?', 'Post it in under a minute with a photo, the place and the time. The whole campus can help you look.'],
-  ['git-compare-outline', [['water-outline', '#06B6D4'], ['bag-handle-outline', '#EF4444'], ['book-outline', '#22C55E'], ['calculator-outline', '#10B981'], ['phone-portrait-outline', '#4F7CFF']],
-    'We find the matches', 'Lost and found reports are compared automatically, so the right people find each other faster.'],
-  ['shield-checkmark', [['chatbubbles-outline', '#8B5CF6'], ['hand-left-outline', '#F97316'], ['lock-closed-outline', '#14B8A6'], ['checkmark-circle-outline', '#22C55E'], ['school-outline', '#2F5BFF']],
-    'Safe, private handovers', 'Owners prove an item is theirs, and contact details are shared only after you approve.'],
+  [PhotoCollage, 'Lost something on campus?', 'Post it in under a minute with a photo, the place and the time. The whole campus can help you look.'],
+  [MatchScene, 'We find the matches', 'Lost and found reports are compared automatically, so the right people find each other faster.'],
+  [PrivacyScene, 'Safe, private handovers', 'Owners prove an item is theirs, and contact details are shared only after the finder approves.'],
 ];
 
 export default function WelcomeScreen({ onDone }) {
@@ -30,7 +28,7 @@ export default function WelcomeScreen({ onDone }) {
   };
 
   return (
-    <SkyBackground>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
       <SafeAreaView style={s.safe}>
         <View style={[s.top, { width: pageWidth }]}>
           <View style={s.brand}>
@@ -54,9 +52,9 @@ export default function WelcomeScreen({ onDone }) {
           onScroll={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / pageWidth))}
           scrollEventThrottle={32}
         >
-          {SLIDES.map(([icon, bubbles, title, text]) => (
+          {SLIDES.map(([Scene, title, text]) => (
             <View key={title} style={[s.slide, { width: pageWidth }]}>
-              <FloatingScene icon={icon} bubbles={bubbles} size={Math.min(pageWidth - 60, 290)} />
+              <Scene size={Math.min(pageWidth - 48, 320)} />
               <Text style={s.title}>{title}</Text>
               <Text style={s.text}>{text}</Text>
             </View>
@@ -66,7 +64,7 @@ export default function WelcomeScreen({ onDone }) {
         <View style={[s.bottom, { width: pageWidth }]}>
           <View style={s.dots}>
             {SLIDES.map((slide, i) => (
-              <Pressable key={slide[2]} onPress={() => goTo(i)} hitSlop={8} accessibilityLabel={`Slide ${i + 1}`}>
+              <Pressable key={slide[1]} onPress={() => goTo(i)} hitSlop={8} accessibilityLabel={`Slide ${i + 1}`}>
                 <View style={[s.dot, i === page && { width: 22, backgroundColor: c.primary }]} />
               </Pressable>
             ))}
@@ -74,7 +72,7 @@ export default function WelcomeScreen({ onDone }) {
           <Button title={last ? 'Get started' : 'Next'} icon={last ? 'arrow-forward' : undefined} onPress={() => (last ? onDone() : goTo(page + 1))} />
         </View>
       </SafeAreaView>
-    </SkyBackground>
+    </View>
   );
 }
 

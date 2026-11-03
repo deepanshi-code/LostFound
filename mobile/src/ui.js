@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { categoryMeta } from './config';
@@ -41,6 +41,32 @@ export function confirm(title, message) {
 export const useUi = () => useStyles(uiStyles);
 
 // ---------- primitives ----------
+
+// Soft pulsing placeholder shown while content loads (instead of a spinner)
+export function Skeleton({ width = '100%', height = 16, radius = 8, style }) {
+  const { colors: c } = useTheme();
+  const pulse = useRef(new Animated.Value(0.55)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.timing(pulse, { toValue: 0.55, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return <Animated.View style={[{ width, height, borderRadius: radius, backgroundColor: c.surface, opacity: pulse }, style]} />;
+}
+
+// Pressable that sinks slightly and springs back, like iOS cards
+export function SpringPress({ children, onPress, style, scaleTo = 0.97, ...rest }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const to = (v) => Animated.spring(scale, { toValue: v, useNativeDriver: false, speed: 40, bounciness: v === 1 ? 6 : 0 }).start();
+  return (
+    <Pressable onPress={onPress} onPressIn={() => to(scaleTo)} onPressOut={() => to(1)} {...rest}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
 
 export function Icon({ name, size = 20, color, style }) {
   const { colors: c } = useTheme();

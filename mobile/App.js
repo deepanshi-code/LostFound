@@ -105,7 +105,7 @@ function Root() {
       {user ? (
         <>
           <Stack.Screen name="Home" component={Tabs} options={{ headerShown: false }} />
-          <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item details', headerTitle: '' }} />
+          <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item details', headerShown: false }} />
         </>
       ) : !onboarded ? (
         <Stack.Screen name="Welcome" options={{ headerShown: false, title: 'Welcome' }}>

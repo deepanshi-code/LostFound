@@ -134,24 +134,15 @@ const makeStyles = (c) => ({
   tickerText: { fontFamily: font.medium, fontSize: 13, color: c.muted, flexShrink: 0, ...(Platform.OS === 'web' && { whiteSpace: 'nowrap' }) },
 });
 
-// Friendly spot illustration: soft halo, brand-gradient circle with an icon, a few sparkles.
+// Calm spot illustration for empty states: a large icon in soft concentric circles
 export function Spot({ icon, size = 120 }) {
   const { colors: c } = useTheme();
-  const inner = size * 0.56;
-  const dot = (x, y, r, color) => (
-    <View style={{ position: 'absolute', left: x, top: y, width: r, height: r, borderRadius: r / 2, backgroundColor: color }} />
-  );
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: c.primarySoft }} />
-      <View style={{ position: 'absolute', width: size * 0.78, height: size * 0.78, borderRadius: size, backgroundColor: c.card, opacity: 0.7 }} />
-      <BrandGradient style={{ width: inner, height: inner, borderRadius: inner / 2, alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 24px ${c.primary}44` }}>
-        <Ionicons name={icon} size={inner * 0.46} color="#fff" />
-      </BrandGradient>
-      {dot(size * 0.08, size * 0.18, 8, '#F59E0B')}
-      {dot(size * 0.84, size * 0.12, 6, '#EC4899')}
-      {dot(size * 0.88, size * 0.72, 9, '#22C55E')}
-      {dot(size * 0.04, size * 0.74, 5, c.primary)}
+      <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: c.surface }} />
+      <View style={{ width: size * 0.62, height: size * 0.62, borderRadius: size, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', boxShadow: `0 6px 18px ${c.shadow}` }}>
+        <Ionicons name={icon} size={size * 0.28} color={c.text} />
+      </View>
     </View>
   );
 }
