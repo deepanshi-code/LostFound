@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../api';
 import { CATEGORIES } from '../config';
-import { SkyBackground } from '../decor';
-import { font, useStyles, useTheme } from '../theme';
-import { Button, Chip, ErrorText, Field, ScreenHeader, Segmented, useUi } from '../ui';
+import { font, tint, useStyles, useTheme } from '../theme';
+import { Button, ErrorText, Field, ScreenHeader, useUi } from '../ui';
 
 const localDate = (daysBack = 0) => {
   const d = new Date(Date.now() - daysBack * 86_400_000); // local date, not UTC
@@ -17,9 +17,12 @@ const emptyForm = (type = 'lost') => ({
 });
 
 export default function PostScreen({ navigation, route }) {
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const s = useStyles(makeStyles);
   const ui = useUi();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const catCols = width >= 700 ? 4 : 3;
   const [form, setForm] = useState(() => emptyForm(route.params?.type));
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
@@ -76,99 +79,151 @@ export default function PostScreen({ navigation, route }) {
     }
   }
 
+  const dates = [['Today', 0], ['Yesterday', 1], ['2 days ago', 2]];
+  const summary = form.category ? `${isLost ? 'Lost' : 'Found'} · ${form.category}` : isLost ? 'Something you lost' : 'Something you found';
+
   return (
-    <SkyBackground>
-    <ScrollView style={ui.screen} contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
-      <ScreenHeader title="Report an item" subtitle="Takes about a minute" />
+    <View style={[ui.screen, { backgroundColor: c.bg }]}>
+      <ScrollView contentContainerStyle={[ui.content, { paddingBottom: 140 }]} keyboardShouldPersistTaps="handled">
+        <ScreenHeader title="Report an item" subtitle="Takes about a minute" />
 
-      <View style={[ui.card, { marginBottom: 20 }]}>
-      <Segmented
-        options={[{ value: 'lost', label: 'I lost something' }, { value: 'found', label: 'I found something' }]}
-        value={form.type}
-        onChange={set('type')}
-      />
-      <Text style={[ui.hint, { marginBottom: 24 }]}>
-        {isLost
-          ? 'People who find a matching item can reply. We also suggest matches automatically.'
-          : 'The owner will have to describe a detail only they would know before you hand it over.'}
-      </Text>
-
-      <Field
-        label="Item" value={form.title} onChangeText={set('title')} maxLength={80}
-        placeholder={isLost ? 'e.g. Black HP laptop charger' : 'e.g. Blue steel water bottle'}
-      />
-
-      <Text style={ui.label}>Category</Text>
-      <View style={s.chips}>
-        {CATEGORIES.map((cat) => (
-          <Chip key={cat.name} label={cat.name} icon={cat.icon} selected={form.category === cat.name} onPress={() => set('category')(cat.name)} />
-        ))}
-      </View>
-
-      <Field
-        label={isLost ? 'Where did you lose it?' : 'Where did you find it?'} icon="location-outline"
-        value={form.location} onChangeText={set('location')} placeholder="e.g. Library, 2nd floor"
-      />
-
-      <Text style={ui.label}>When?</Text>
-      <View style={s.dateRow}>
-        {[['Today', 0], ['Yesterday', 1], ['2 days ago', 2]].map(([label, n]) => (
-          <Chip key={label} label={label} selected={form.date_occurred === localDate(n)} onPress={() => set('date_occurred')(localDate(n))} />
-        ))}
-      </View>
-      <Field icon="calendar-outline" value={form.date_occurred} onChangeText={set('date_occurred')} placeholder="YYYY-MM-DD" hint="Or type a date as YYYY-MM-DD" />
-
-      <Field
-        label="Description" value={form.description} onChangeText={set('description')} multiline
-        placeholder={isLost ? 'Colour, brand, marks, what was inside…' : 'Describe it in general terms. Keep one detail back to check the real owner.'}
-      />
-
-      <Text style={ui.label}>Photo <Text style={s.optional}>· optional</Text></Text>
-      {photo ? (
-        <View style={s.previewWrap}>
-          <Image source={{ uri: photo.uri }} style={s.preview} />
-          <Pressable style={s.removePhoto} onPress={() => setPhoto(null)} accessibilityLabel="Remove photo">
-            <Ionicons name="close" size={18} color="#fff" />
-          </Pressable>
+        <Text style={s.section}>What happened?</Text>
+        <View style={s.choices}>
+          {[
+            ['lost', 'help-buoy-outline', 'I lost something', 'Ask the campus to look out for it'],
+            ['found', 'hand-left-outline', 'I found something', 'Help it get back to its owner'],
+          ].map(([value, icon, title, sub]) => {
+            const active = form.type === value;
+            return (
+              <Pressable key={value} onPress={() => set('type')(value)} style={({ hovered }) => [s.choice, active && s.choiceActive, hovered && !active && { borderColor: c.text }]}>
+                <Ionicons name={icon} size={28} color={c.text} />
+                <Text style={s.choiceTitle}>{title}</Text>
+                <Text style={s.choiceSub}>{sub}</Text>
+              </Pressable>
+            );
+          })}
         </View>
-      ) : (
-        <View style={s.photoRow}>
-          <Pressable style={({ hovered }) => [s.photoBox, hovered && { borderColor: c.faint }]} onPress={() => pickPhoto(false)}>
-            <Ionicons name="image-outline" size={22} color={c.muted} />
-            <Text style={s.photoText}>Upload photo</Text>
-          </Pressable>
-          {Platform.OS !== 'web' ? (
-            <Pressable style={s.photoBox} onPress={() => pickPhoto(true)}>
-              <Ionicons name="camera-outline" size={22} color={c.muted} />
-              <Text style={s.photoText}>Take photo</Text>
+
+        <View style={s.divider} />
+        <Field
+          label="What is it?" value={form.title} onChangeText={set('title')} maxLength={80}
+          placeholder={isLost ? 'e.g. Black HP laptop charger' : 'e.g. Blue steel water bottle'}
+        />
+
+        <Text style={s.label}>Category</Text>
+        <View style={s.grid}>
+          {CATEGORIES.map((cat) => {
+            const active = form.category === cat.name;
+            return (
+              <Pressable
+                key={cat.name}
+                onPress={() => set('category')(cat.name)}
+                style={({ hovered }) => [s.tile, { width: `${100 / catCols - 3}%` }, active && s.tileActive, hovered && !active && { borderColor: c.text }]}
+              >
+                <View style={[s.tileIcon, { backgroundColor: tint(cat.color, isDark) }]}>
+                  <Ionicons name={cat.icon} size={20} color={cat.color} />
+                </View>
+                <Text style={s.tileText} numberOfLines={2}>{cat.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={s.divider} />
+        <Field
+          label={isLost ? 'Where did you lose it?' : 'Where did you find it?'} icon="location-outline"
+          value={form.location} onChangeText={set('location')} placeholder="e.g. Library, 2nd floor"
+        />
+
+        <Text style={s.label}>When?</Text>
+        <View style={s.pills}>
+          {dates.map(([label, n]) => {
+            const active = form.date_occurred === localDate(n);
+            return (
+              <Pressable key={label} onPress={() => set('date_occurred')(localDate(n))} style={[s.pill, active && s.pillActive]}>
+                <Text style={[s.pillText, active && { color: c.bg }]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Field icon="calendar-outline" value={form.date_occurred} onChangeText={set('date_occurred')} placeholder="YYYY-MM-DD" hint="Or type a date as YYYY-MM-DD" />
+
+        <View style={s.divider} />
+        <Field
+          label="Description" value={form.description} onChangeText={set('description')} multiline
+          placeholder={isLost ? 'Colour, brand, marks, what was inside…' : 'Describe it in general terms. Keep one detail back to check the real owner.'}
+        />
+
+        <Text style={s.label}>Photo <Text style={s.optional}>· optional</Text></Text>
+        {photo ? (
+          <View>
+            <Image source={{ uri: photo.uri }} style={s.preview} />
+            <Pressable style={s.removePhoto} onPress={() => setPhoto(null)} accessibilityLabel="Remove photo">
+              <Ionicons name="close" size={18} color="#fff" />
             </Pressable>
-          ) : null}
+          </View>
+        ) : (
+          <>
+            <Pressable style={({ hovered }) => [s.drop, hovered && { borderColor: c.text }]} onPress={() => pickPhoto(false)}>
+              <Ionicons name="images-outline" size={32} color={c.text} />
+              <Text style={s.dropTitle}>Add a photo</Text>
+              <Text style={s.dropSub}>Posts with a photo are recognised much faster</Text>
+            </Pressable>
+            {Platform.OS !== 'web' ? (
+              <Button title="Take a photo" icon="camera-outline" variant="outline" onPress={() => pickPhoto(true)} style={{ marginTop: 12 }} />
+            ) : null}
+          </>
+        )}
+
+        <View style={{ height: 20 }} />
+        <ErrorText>{error}</ErrorText>
+      </ScrollView>
+
+      <View style={[s.bar, { paddingBottom: insets.bottom + 14 }]}>
+        <View style={s.barInner}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.barTitle} numberOfLines={1}>{summary}</Text>
+            <Text style={s.barSub} numberOfLines={1}>{form.title.trim() || 'Add a title, category and place'}</Text>
+          </View>
+          <Button title={isLost ? 'Post lost item' : 'Post found item'} onPress={submit} loading={busy} />
         </View>
-      )}
-
       </View>
-
-      <ErrorText>{error}</ErrorText>
-      <Button title={isLost ? 'Post lost item' : 'Post found item'} onPress={submit} loading={busy} />
-    </ScrollView>
-    </SkyBackground>
+    </View>
   );
 }
 
 const makeStyles = (c) => ({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
-  dateRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 0 },
-  optional: { fontFamily: font.regular, color: c.faint },
-  photoRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  photoBox: {
-    flex: 1, height: 104, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border,
-    backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', gap: 8,
+  section: { fontFamily: font.bold, fontSize: 20, color: c.text, letterSpacing: -0.3, marginBottom: 14 },
+  label: { fontFamily: font.semibold, fontSize: 14, color: c.text, marginBottom: 10 },
+  optional: { fontFamily: font.regular, color: c.muted },
+  divider: { height: 1, backgroundColor: c.divider, marginVertical: 26 },
+  choices: { flexDirection: 'row', gap: 12 },
+  choice: { flex: 1, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 18, gap: 4 },
+  choiceActive: { borderWidth: 2, borderColor: c.text, backgroundColor: c.surface, padding: 17 },
+  choiceTitle: { fontFamily: font.semibold, fontSize: 16, color: c.text, marginTop: 12 },
+  choiceSub: { fontFamily: font.regular, fontSize: 13, color: c.muted, lineHeight: 18 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 6 },
+  tile: { flexGrow: 1, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12, gap: 8, minHeight: 96 },
+  tileActive: { borderWidth: 2, borderColor: c.text, backgroundColor: c.surface, padding: 11 },
+  tileIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tileText: { fontFamily: font.medium, fontSize: 13, color: c.text, lineHeight: 17 },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  pill: { height: 36, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: c.border, justifyContent: 'center' },
+  pillActive: { backgroundColor: c.text, borderColor: c.text },
+  pillText: { fontFamily: font.semibold, fontSize: 13, color: c.text },
+  drop: {
+    height: 180, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.border,
+    alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 20,
   },
-  photoText: { fontFamily: font.medium, fontSize: 13, color: c.muted },
-  previewWrap: { marginBottom: 24 },
-  preview: { width: '100%', height: 220, borderRadius: 14, backgroundColor: c.surface },
+  dropTitle: { fontFamily: font.semibold, fontSize: 16, color: c.text, marginTop: 6 },
+  dropSub: { fontFamily: font.regular, fontSize: 13, color: c.muted, textAlign: 'center' },
+  preview: { width: '100%', height: 260, borderRadius: 16, backgroundColor: c.surface },
   removePhoto: {
-    position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center',
   },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 14, paddingHorizontal: 24 },
+  barInner: { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', maxWidth: 720, alignSelf: 'center' },
+  barTitle: { fontFamily: font.bold, fontSize: 15, color: c.text },
+  barSub: { fontFamily: font.regular, fontSize: 13, color: c.muted, marginTop: 2 },
 });

@@ -4,24 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { BrandMark, CampusScene, NoticeTicker, SkyBackground } from '../decor';
+import { BrandMark } from '../decor';
+import { PhotoCollage } from '../welcomeScenes';
 import { font, softShadow, useStyles, useTheme } from '../theme';
 import { Banner, Button, ErrorText, Field, Segmented, useUi } from '../ui';
 
 const RESEND_SECONDS = 60;
 
-const POINTS = [
-  ['sparkles-outline', 'Smart matches', 'Similar lost and found reports are paired for you automatically.'],
-  ['shield-checkmark-outline', 'Verified campus accounts', 'Only college email addresses can join.'],
-  ['lock-closed-outline', 'Private by default', 'Contact details are shared only after you approve.'],
-];
 
-const TIPS = [
-  'Found something? Report it so the owner can find it',
-  'Owners must describe a hidden detail before you hand an item over',
-  'Meet in a public place on campus for handovers',
-  'Never share your verification code with anyone',
-];
 
 const COPY = {
   login: ['Welcome back', 'Log in to report and find items on campus.'],
@@ -120,12 +110,8 @@ export default function AuthScreen() {
   const wide = width >= 960;
 
   return (
-    <SkyBackground>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
-        {/* Illustration sits behind the content */}
-        <View style={s.scene} pointerEvents="none">
-          <CampusScene opacity={wide ? 0.75 : 0.45} style={{ maxWidth: wide ? 900 : 560 }} />
-        </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={[s.page, wide && s.pageWide]} keyboardShouldPersistTaps="handled">
             {wide ? (
@@ -139,24 +125,12 @@ export default function AuthScreen() {
                   <Text style={{ color: c.primary }}>Let's bring it back.</Text>
                 </Text>
                 <Text style={s.heroText}>Report lost and found items, get matched automatically, and hand things back safely.</Text>
-                <View style={s.points}>
-                  {POINTS.map(([icon, head, text]) => (
-                    <View key={head} style={s.point}>
-                      <View style={s.pointIcon}><Ionicons name={icon} size={18} color={c.primary} /></View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.pointHead}>{head}</Text>
-                        <Text style={s.pointText}>{text}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+                <View style={{ marginTop: 28 }}><PhotoCollage size={400} /></View>
               </View>
             ) : null}
 
-            <View style={[s.formCol, wide && { width: 460 }]}>
-              <NoticeTicker label="TIP" messages={TIPS} />
-
-              <View style={s.card}>
+            <View style={[s.formCol, wide && { width: 440 }]}>
+              <View style={[s.card, wide && s.cardWide]}>
                 <View style={s.cardHead}>
                   <BrandMark size={56} />
                   {!wide ? <Text style={s.brandSmall}>Campus Lost & Found</Text> : null}
@@ -266,31 +240,23 @@ export default function AuthScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </SkyBackground>
+    </View>
   );
 }
 
 const makeStyles = (c) => ({
-  page: { flexGrow: 1, padding: 20, paddingTop: 24, paddingBottom: 140, alignItems: 'center', justifyContent: 'center' },
-  pageWide: { flexDirection: 'row', gap: 64, paddingHorizontal: 56, paddingBottom: 200, maxWidth: 1240, width: '100%', alignSelf: 'center' },
-  scene: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
+  page: { flexGrow: 1, padding: 24, paddingTop: 24, paddingBottom: 40, alignItems: 'center', justifyContent: 'center' },
+  pageWide: { flexDirection: 'row', gap: 64, paddingHorizontal: 56, paddingBottom: 48, maxWidth: 1240, width: '100%', alignSelf: 'center' },
 
   hero: { flex: 1, maxWidth: 560, paddingBottom: 40 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 40 },
   brandName: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
   heroTitle: { fontFamily: font.extrabold, fontSize: 46, lineHeight: 54, color: c.text, letterSpacing: -1.6 },
   heroText: { fontFamily: font.regular, fontSize: 17, lineHeight: 27, color: c.muted, marginTop: 18, maxWidth: 480 },
-  points: { marginTop: 34, gap: 18 },
-  point: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  pointIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', ...softShadow(c, 4, 12) },
-  pointHead: { fontFamily: font.bold, fontSize: 15, color: c.text },
-  pointText: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2, lineHeight: 20 },
 
   formCol: { width: '100%', maxWidth: 460, gap: 16 },
-  card: {
-    backgroundColor: c.glass, borderRadius: 28, padding: 28, borderWidth: 1, borderColor: c.border,
-    ...softShadow(c, 20, 50), ...(Platform.OS === 'web' && { backdropFilter: 'blur(14px)' }),
-  },
+  card: { paddingVertical: 8 },
+  cardWide: { backgroundColor: c.card, borderRadius: 24, padding: 32, borderWidth: 1, borderColor: c.divider, ...softShadow(c, 12, 40) },
   cardHead: { alignItems: 'center', marginBottom: 24 },
   brandSmall: { fontFamily: font.semibold, fontSize: 13, color: c.muted, marginTop: 12, letterSpacing: 0.2 },
   title: { fontFamily: font.extrabold, fontSize: 26, color: c.text, letterSpacing: -0.8, marginTop: 14, textAlign: 'center' },

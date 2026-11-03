@@ -4,13 +4,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { CATEGORIES } from '../config';
-import { SkyBackground } from '../decor';
-import { font, softShadow, tint, useStyles, useTheme } from '../theme';
+import { font, tint, useStyles, useTheme } from '../theme';
 import { ScreenHeader, useUi } from '../ui';
 
 // Browse by category: pastel tiles with how many open items each has
 export default function ExploreScreen({ navigation }) {
-  const { isDark } = useTheme();
+  const { isDark, colors: c } = useTheme();
   const s = useStyles(makeStyles);
   const ui = useUi();
   const { width } = useWindowDimensions();
@@ -28,8 +27,7 @@ export default function ExploreScreen({ navigation }) {
   const open = (category) => navigation.navigate('Browse', { category, t: Date.now() });
 
   return (
-    <SkyBackground>
-      <ScrollView style={ui.screen} contentContainerStyle={[ui.content, { maxWidth: 1000, paddingBottom: 110 }]}>
+      <ScrollView style={[ui.screen, { backgroundColor: c.bg }]} contentContainerStyle={[ui.content, { maxWidth: 1000, paddingBottom: 110 }]}>
         <ScreenHeader title="Explore" subtitle="Browse by category" />
         <View style={s.grid}>
           {CATEGORIES.map((cat) => {
@@ -50,18 +48,17 @@ export default function ExploreScreen({ navigation }) {
           })}
         </View>
       </ScrollView>
-    </SkyBackground>
   );
 }
 
 const makeStyles = (c) => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'flex-start' },
   tile: {
-    flexGrow: 1, backgroundColor: c.card, borderRadius: 20, padding: 14, alignItems: 'flex-start',
-    borderWidth: 1, borderColor: c.divider, minHeight: 122, ...softShadow(c, 6, 18),
+    flexGrow: 1, backgroundColor: c.card, borderRadius: 16, padding: 16, alignItems: 'flex-start',
+    borderWidth: 1, borderColor: c.border, minHeight: 122,
   },
-  hover: { borderColor: c.primarySoft, transform: [{ translateY: -2 }] },
+  hover: { borderColor: c.text },
   icon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  name: { fontFamily: font.bold, fontSize: 13, color: c.text, lineHeight: 17 },
+  name: { fontFamily: font.semibold, fontSize: 14, color: c.text, lineHeight: 18 },
   count: { fontFamily: font.medium, fontSize: 11, color: c.faint, marginTop: 4 },
 });

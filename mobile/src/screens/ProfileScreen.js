@@ -1,24 +1,24 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { API_URL } from '../config';
-import { BrandGradient, SkyBackground } from '../decor';
 import { font, useStyles, useTheme } from '../theme';
-import { ListRow, ScreenHeader, SectionTitle, Segmented, useUi } from '../ui';
+import { Avatar, ScreenHeader, Segmented, useUi } from '../ui';
 
 const STEPS = [
-  ['add-circle-outline', 'Report what you lost or found, with a photo if you can.'],
-  ['sparkles-outline', 'Similar reports are suggested as possible matches.'],
-  ['chatbubble-ellipses-outline', 'Reply to a post. Owners describe a detail that isn\'t shown.'],
-  ['shield-checkmark-outline', 'Email and phone are shared only after the poster approves.'],
-  ['checkmark-circle-outline', 'Meet somewhere public on campus, then mark it returned.'],
+  ['add-circle-outline', 'Report it', 'Post what you lost or found, with a photo if you can.'],
+  ['sparkles-outline', 'Get matched', 'Similar reports are suggested automatically.'],
+  ['chatbubble-ellipses-outline', 'Prove it', 'Owners describe a detail that isn\'t shown in the post.'],
+  ['shield-checkmark-outline', 'Stay private', 'Email and phone are shared only after approval.'],
+  ['checkmark-circle-outline', 'Hand it over', 'Meet somewhere public on campus, then mark it returned.'],
 ];
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, colors: c } = useTheme();
   const s = useStyles(makeStyles);
   const ui = useUi();
   const [stats, setStats] = useState(null);
@@ -34,27 +34,34 @@ export default function ProfileScreen() {
   }, []));
 
   return (
-    <SkyBackground>
-    <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
+    <ScrollView style={[ui.screen, { backgroundColor: c.bg }]} contentContainerStyle={[ui.content, { paddingBottom: 120 }]}>
       <ScreenHeader title="Profile" />
 
-      <BrandGradient style={s.accountCard}>
-        <View style={s.account}>
-          <View style={s.avatar}><Text style={s.avatarText}>{user.name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.name}>{user.name}</Text>
-            <Text style={s.email} numberOfLines={1}>{user.email}</Text>
-            {user.phone ? <Text style={s.email}>{user.phone}</Text> : null}
-          </View>
+      <View style={s.account}>
+        <Avatar name={user.name} size={68} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.name}>{user.name}</Text>
+          <Text style={s.email} numberOfLines={1}>{user.email}</Text>
+          {user.phone ? <Text style={s.email}>{user.phone}</Text> : null}
         </View>
-        <View style={s.stats}>
-          <Stat value={stats?.posts} label="Posts" s={s} />
-          <Stat value={stats?.returned} label="Returned" s={s} />
-          <Stat value={stats?.responses} label="Responses" s={s} />
-        </View>
-      </BrandGradient>
+      </View>
 
-      <SectionTitle>Appearance</SectionTitle>
+      <View style={s.stats}>
+        <Stat value={stats?.posts} label="Posts" s={s} />
+        <View style={s.statLine} />
+        <Stat value={stats?.returned} label="Returned" s={s} />
+        <View style={s.statLine} />
+        <Stat value={stats?.responses} label="Responses" s={s} />
+      </View>
+
+      <Text style={s.section}>Settings</Text>
+      <View style={s.settingRow}>
+        <Ionicons name="contrast-outline" size={24} color={c.text} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle}>Appearance</Text>
+          <Text style={s.rowSub}>System follows your device's setting</Text>
+        </View>
+      </View>
       <Segmented
         options={[
           { value: 'light', label: 'Light', icon: 'sunny-outline' },
@@ -64,21 +71,26 @@ export default function ProfileScreen() {
         value={mode}
         onChange={setMode}
       />
-      <Text style={ui.hint}>System follows your device's light or dark setting.</Text>
 
-      <SectionTitle>How it works</SectionTitle>
-      <View style={ui.group}>
-        {STEPS.map(([icon, text], i) => (
-          <ListRow key={i} icon={icon} label={text} last={i === STEPS.length - 1} />
-        ))}
-      </View>
+      <View style={s.divider} />
+      <Text style={s.section}>How it works</Text>
+      {STEPS.map(([icon, title, text]) => (
+        <View key={title} style={s.step}>
+          <Ionicons name={icon} size={24} color={c.text} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowTitle}>{title}</Text>
+            <Text style={s.rowSub}>{text}</Text>
+          </View>
+        </View>
+      ))}
 
-      <View style={[ui.group, { marginTop: 28 }]}>
-        <ListRow icon="log-out-outline" label="Log out" onPress={signOut} danger last />
-      </View>
-      <Text style={[ui.hint, { textAlign: 'center', marginTop: 20 }]}>Connected to {API_URL}</Text>
+      <View style={s.divider} />
+      <Pressable onPress={signOut} style={s.logout} hitSlop={8} accessibilityRole="button">
+        <Ionicons name="log-out-outline" size={22} color={c.text} />
+        <Text style={s.logoutText}>Log out</Text>
+      </Pressable>
+      <Text style={[ui.hint, { marginTop: 28 }]}>Connected to {API_URL}</Text>
     </ScrollView>
-    </SkyBackground>
   );
 }
 
@@ -92,20 +104,23 @@ function Stat({ value, label, s }) {
 }
 
 const makeStyles = (c) => ({
-  accountCard: { borderRadius: 28, padding: 20, boxShadow: `0 16px 36px ${c.primary}40` },
-  account: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  avatar: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center',
+  account: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  name: { fontFamily: font.bold, fontSize: 22, color: c.text, letterSpacing: -0.4 },
+  email: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2 },
+  stats: {
+    flexDirection: 'row', marginTop: 24, borderRadius: 18, borderWidth: 1, borderColor: c.divider,
+    paddingVertical: 18, boxShadow: '0 6px 20px rgba(0,0,0,0.06)', backgroundColor: c.card,
   },
-  avatarText: { fontFamily: font.bold, fontSize: 21, color: '#fff' },
-  name: { fontFamily: font.extrabold, fontSize: 20, color: '#fff', letterSpacing: -0.4, marginBottom: 2 },
-  email: { fontFamily: font.regular, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
-  stats: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  stat: {
-    flex: 1, alignItems: 'center', borderRadius: 16, paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
-  },
-  statValue: { fontFamily: font.extrabold, fontSize: 20, color: '#fff' },
-  statLabel: { fontFamily: font.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  stat: { flex: 1, alignItems: 'center' },
+  statValue: { fontFamily: font.bold, fontSize: 24, color: c.text },
+  statLabel: { fontFamily: font.regular, fontSize: 13, color: c.muted, marginTop: 2 },
+  statLine: { width: 1, backgroundColor: c.divider },
+  section: { fontFamily: font.bold, fontSize: 20, color: c.text, letterSpacing: -0.3, marginTop: 32, marginBottom: 18 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 14 },
+  rowTitle: { fontFamily: font.semibold, fontSize: 16, color: c.text },
+  rowSub: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2, lineHeight: 20 },
+  divider: { height: 1, backgroundColor: c.divider, marginTop: 32 },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 20 },
+  logout: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, alignSelf: 'flex-start' },
+  logoutText: { fontFamily: font.semibold, fontSize: 16, color: c.text, textDecorationLine: 'underline' },
 });
