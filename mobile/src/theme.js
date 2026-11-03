@@ -108,3 +108,6 @@ export function useStyles(factory) {
 
 // Soft card shadow used across the app
 export const softShadow = (c, y = 8, blur = 28) => ({ boxShadow: `0 ${y}px ${blur}px ${c.shadow}` });
+
+// Pastel version of an accent colour (category tiles, thumbnails)
+export const tint = (hex, isDark) => hex + (isDark ? '2E' : '1F');

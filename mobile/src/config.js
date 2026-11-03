@@ -18,30 +18,30 @@ function resolveApiUrl() {
 export const API_URL = resolveApiUrl();
 
 // Keep the names in sync with backend/src/db.js (the server validates against its own list).
-// icon = Ionicons name
+// icon = Ionicons name, color = accent used for pastel tiles and icons
 export const CATEGORIES = [
-  { name: 'Phone', icon: 'phone-portrait-outline' },
-  { name: 'Laptop & Tablet', icon: 'laptop-outline' },
-  { name: 'Earphones', icon: 'headset-outline' },
-  { name: 'Charger & Cables', icon: 'battery-charging-outline' },
-  { name: 'Gadgets', icon: 'hardware-chip-outline' },
-  { name: 'Calculator', icon: 'calculator-outline' },
-  { name: 'ID Card', icon: 'card-outline' },
-  { name: 'Wallet & Cash', icon: 'wallet-outline' },
-  { name: 'Keys', icon: 'key-outline' },
-  { name: 'Bag', icon: 'bag-handle-outline' },
-  { name: 'Books & Notes', icon: 'book-outline' },
-  { name: 'Stationery', icon: 'pencil-outline' },
-  { name: 'Documents', icon: 'document-text-outline' },
-  { name: 'Clothing', icon: 'shirt-outline' },
-  { name: 'Shoes', icon: 'footsteps-outline' },
-  { name: 'Spectacles', icon: 'glasses-outline' },
-  { name: 'Watch', icon: 'watch-outline' },
-  { name: 'Jewellery', icon: 'diamond-outline' },
-  { name: 'Bottle & Tiffin', icon: 'water-outline' },
-  { name: 'Umbrella', icon: 'umbrella-outline' },
-  { name: 'Sports Gear', icon: 'tennisball-outline' },
-  { name: 'Other', icon: 'cube-outline' },
+  { name: 'Phone', icon: 'phone-portrait-outline', color: '#4F7CFF' },
+  { name: 'Laptop & Tablet', icon: 'laptop-outline', color: '#6D5BFF' },
+  { name: 'Earphones', icon: 'headset-outline', color: '#A259FF' },
+  { name: 'Charger & Cables', icon: 'battery-charging-outline', color: '#F59E0B' },
+  { name: 'Gadgets', icon: 'hardware-chip-outline', color: '#06B6D4' },
+  { name: 'Calculator', icon: 'calculator-outline', color: '#10B981' },
+  { name: 'ID Card', icon: 'card-outline', color: '#3B82F6' },
+  { name: 'Wallet & Cash', icon: 'wallet-outline', color: '#F97316' },
+  { name: 'Keys', icon: 'key-outline', color: '#EAB308' },
+  { name: 'Bag', icon: 'bag-handle-outline', color: '#EF4444' },
+  { name: 'Books & Notes', icon: 'book-outline', color: '#22C55E' },
+  { name: 'Stationery', icon: 'pencil-outline', color: '#F472B6' },
+  { name: 'Documents', icon: 'document-text-outline', color: '#64748B' },
+  { name: 'Clothing', icon: 'shirt-outline', color: '#8B5CF6' },
+  { name: 'Shoes', icon: 'footsteps-outline', color: '#FB7185' },
+  { name: 'Spectacles', icon: 'glasses-outline', color: '#0EA5E9' },
+  { name: 'Watch', icon: 'watch-outline', color: '#14B8A6' },
+  { name: 'Jewellery', icon: 'diamond-outline', color: '#EC4899' },
+  { name: 'Bottle & Tiffin', icon: 'water-outline', color: '#06B6D4' },
+  { name: 'Umbrella', icon: 'umbrella-outline', color: '#6366F1' },
+  { name: 'Sports Gear', icon: 'tennisball-outline', color: '#84CC16' },
+  { name: 'Other', icon: 'cube-outline', color: '#94A3B8' },
 ];
 
 export const categoryMeta = (name) =>

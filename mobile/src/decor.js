@@ -133,3 +133,66 @@ const makeStyles = (c) => ({
   tickerTrack: { position: 'absolute', left: 0, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center' },
   tickerText: { fontFamily: font.medium, fontSize: 13, color: c.muted, flexShrink: 0, ...(Platform.OS === 'web' && { whiteSpace: 'nowrap' }) },
 });
+
+// Friendly spot illustration: soft halo, brand-gradient circle with an icon, a few sparkles.
+export function Spot({ icon, size = 120 }) {
+  const { colors: c } = useTheme();
+  const inner = size * 0.56;
+  const dot = (x, y, r, color) => (
+    <View style={{ position: 'absolute', left: x, top: y, width: r, height: r, borderRadius: r / 2, backgroundColor: color }} />
+  );
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: c.primarySoft }} />
+      <View style={{ position: 'absolute', width: size * 0.78, height: size * 0.78, borderRadius: size, backgroundColor: c.card, opacity: 0.7 }} />
+      <BrandGradient style={{ width: inner, height: inner, borderRadius: inner / 2, alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 24px ${c.primary}44` }}>
+        <Ionicons name={icon} size={inner * 0.46} color="#fff" />
+      </BrandGradient>
+      {dot(size * 0.08, size * 0.18, 8, '#F59E0B')}
+      {dot(size * 0.84, size * 0.12, 6, '#EC4899')}
+      {dot(size * 0.88, size * 0.72, 9, '#22C55E')}
+      {dot(size * 0.04, size * 0.74, 5, c.primary)}
+    </View>
+  );
+}
+
+// One pastel bubble that bobs up and down forever
+function Bubble({ icon, color, size, delay, style }) {
+  const { isDark } = useTheme();
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(y, { toValue: -8, duration: 1600, delay, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      Animated.timing(y, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [y, delay]);
+  return (
+    <Animated.View style={[{
+      position: 'absolute', width: size, height: size, borderRadius: size * 0.32, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: color + (isDark ? '33' : '22'), transform: [{ translateY: y }, { rotate: `${(delay % 3) * 6 - 6}deg` }],
+    }, style]}>
+      <Ionicons name={icon} size={size * 0.46} color={color} />
+    </Animated.View>
+  );
+}
+
+// Welcome-slide scene: a big gradient circle with floating item bubbles around it
+export function FloatingScene({ icon, bubbles, size = 260 }) {
+  const { colors: c } = useTheme();
+  const center = size * 0.42;
+  const spots = [[0.02, 0.12], [0.72, 0.04], [0.8, 0.62], [0.06, 0.66], [0.4, 0.86]];
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ position: 'absolute', width: size * 0.86, height: size * 0.86, borderRadius: size, backgroundColor: c.primarySoft }} />
+      <BrandGradient style={{ width: center, height: center, borderRadius: center / 2, alignItems: 'center', justifyContent: 'center', boxShadow: `0 18px 40px ${c.primary}55` }}>
+        <Ionicons name={icon} size={center * 0.44} color="#fff" />
+      </BrandGradient>
+      {bubbles.slice(0, spots.length).map(([bIcon, color], i) => (
+        <Bubble key={bIcon} icon={bIcon} color={color} size={size * 0.2} delay={i * 350}
+          style={{ left: spots[i][0] * size, top: spots[i][1] * size }} />
+      ))}
+    </View>
+  );
+}

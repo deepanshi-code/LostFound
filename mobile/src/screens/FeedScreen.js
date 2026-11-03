@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,7 +7,7 @@ import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { CATEGORIES } from '../config';
 import { BrandGradient, NoticeTicker, SkyBackground } from '../decor';
-import ItemCard from '../ItemCard';
+import GridCard from '../GridCard';
 import { font, useStyles, useTheme } from '../theme';
 import { Chip, EmptyState, ErrorText, Segmented, SectionTitle, useUi } from '../ui';
 
@@ -22,12 +22,15 @@ const TIPS = [
   'Meet in a public place on campus for handovers',
 ];
 
-export default function FeedScreen({ navigation }) {
+export default function FeedScreen({ navigation, route }) {
   const { user } = useAuth();
   const { colors: c } = useTheme();
   const s = useStyles(makeStyles);
   const ui = useUi();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // 2 photo columns on phones, 3 on tablets, 4 on wide screens
+  const cols = width >= 1100 ? 4 : width >= 700 ? 3 : 2;
 
   const [type, setType] = useState('all');
   const [category, setCategory] = useState(null);
@@ -37,6 +40,11 @@ export default function FeedScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Explore opens Home with a category already chosen
+  useEffect(() => {
+    if (route.params?.category) { setCategory(route.params.category); setType('all'); }
+  }, [route.params?.category, route.params?.t]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -126,7 +134,7 @@ export default function FeedScreen({ navigation }) {
         <Chip label="All categories" icon="apps-outline" selected={!category} onPress={() => setCategory(null)} />
         {CATEGORIES.map((cat) => (
           <Chip
-            key={cat.name} label={cat.name} icon={cat.icon} selected={category === cat.name}
+            key={cat.name} label={cat.name} icon={cat.icon} color={cat.color} selected={category === cat.name}
             onPress={() => setCategory(category === cat.name ? null : cat.name)}
           />
         ))}
@@ -145,14 +153,19 @@ export default function FeedScreen({ navigation }) {
   return (
     <SkyBackground>
       <FlatList
+        key={`grid-${cols}`} // numColumns can't change on the fly, so remount when it does
         style={ui.screen}
-        contentContainerStyle={ui.content}
+        contentContainerStyle={[ui.content, { maxWidth: 1120, paddingBottom: 110 }]}
         data={items}
+        numColumns={cols}
+        columnWrapperStyle={{ gap: 14 }}
         keyExtractor={(i) => String(i.id)}
         ListHeaderComponent={header}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        renderItem={({ item }) => (
-          <ItemCard item={item} onPress={() => navigation.navigate('ItemDetail', { id: item.id })} />
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        renderItem={({ item, index }) => (
+          <View style={{ flex: 1 / cols }}>
+            <GridCard item={item} index={index} onPress={() => navigation.navigate('ItemDetail', { id: item.id })} />
+          </View>
         )}
         ListEmptyComponent={
           !loaded || error ? null : filtered ? (

@@ -3,8 +3,8 @@ import { ActivityIndicator, Alert, Image, Platform, Pressable, StyleSheet, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { categoryMeta } from './config';
-import { BrandGradient } from './decor';
-import { font, softShadow, useStyles, useTheme } from './theme';
+import { BrandGradient, Spot } from './decor';
+import { font, softShadow, tint, useStyles, useTheme } from './theme';
 
 // ---------- helpers ----------
 
@@ -128,13 +128,14 @@ export function Field({ label, hint, style, icon, secure, ...inputProps }) {
   );
 }
 
-export function Chip({ label, icon, selected, onPress }) {
+// color: optional accent for the icon (e.g. a category colour)
+export function Chip({ label, icon, color, selected, onPress }) {
   const { colors: c } = useTheme();
   const ui = useUi();
   return (
-    <Pressable onPress={onPress} style={[ui.chip, selected && ui.chipSelected]}>
-      {icon ? <Ionicons name={icon} size={15} color={selected ? c.bg : c.muted} /> : null}
-      <Text style={[ui.chipText, selected && { color: c.bg }]}>{label}</Text>
+    <Pressable onPress={onPress} style={({ pressed }) => [ui.chip, selected && ui.chipSelected, pressed && { transform: [{ scale: 0.96 }] }]}>
+      {icon ? <Ionicons name={icon} size={15} color={selected ? c.onPrimary : color || c.muted} /> : null}
+      <Text style={[ui.chipText, selected && { color: c.onPrimary }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -178,13 +179,16 @@ export function StatusPill({ status }) {
 }
 
 // Photo if there is one, otherwise the category icon on a neutral tile
-export function Thumb({ category, uri, size = 64, radius = 12, iconSize, style }) {
-  const { colors: c } = useTheme();
-  const box = { width: size, height: size, borderRadius: radius };
+// Photo if there is one, otherwise the category icon on a pastel tile in the category's colour
+// square: fill the parent's width as a square instead of using `size`
+export function Thumb({ category, uri, size = 64, radius = 12, iconSize, style, square }) {
+  const { colors: c, isDark } = useTheme();
+  const meta = categoryMeta(category);
+  const box = square ? { width: '100%', aspectRatio: 1, borderRadius: radius } : { width: size, height: size, borderRadius: radius };
   if (uri) return <Image source={{ uri }} style={[box, { backgroundColor: c.surface }, style]} />;
   return (
-    <View style={[box, { backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }, style]}>
-      <Ionicons name={categoryMeta(category).icon} size={iconSize || Math.round(size * 0.38)} color={c.faint} />
+    <View style={[box, { backgroundColor: tint(meta.color, isDark), alignItems: 'center', justifyContent: 'center' }, style]}>
+      <Ionicons name={meta.icon} size={iconSize || Math.round(size * 0.38)} color={meta.color} />
     </View>
   );
 }
@@ -236,11 +240,10 @@ export function ErrorText({ children }) {
 }
 
 export function EmptyState({ icon, title, subtitle, action }) {
-  const { colors: c } = useTheme();
   const ui = useUi();
   return (
     <View style={ui.empty}>
-      <View style={ui.emptyIcon}><Ionicons name={icon} size={28} color={c.primary} /></View>
+      <Spot icon={icon} size={120} />
       <Text style={ui.emptyTitle}>{title}</Text>
       {subtitle ? <Text style={ui.emptySubtitle}>{subtitle}</Text> : null}
       {action ? <View style={{ marginTop: 18 }}>{action}</View> : null}

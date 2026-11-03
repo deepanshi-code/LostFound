@@ -1,7 +1,7 @@
 // PostgreSQL everywhere:
 // - DATABASE_URL set (e.g. Supabase): a real Postgres server, data survives restarts and redeploys
 // - not set (local development): PGlite, an embedded Postgres stored in backend/data/pgdata
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 let client;   // object with query(sql, params) -> { rows }
@@ -22,6 +22,10 @@ if (process.env.DATABASE_URL) {
   const { PGlite } = await import('@electric-sql/pglite');
   const dir = process.env.PGLITE_DIR || path.resolve(import.meta.dirname, '..', 'data', 'pgdata');
   mkdirSync(path.dirname(dir), { recursive: true });
+  // A server that was killed (e.g. its terminal closed) leaves postmaster.pid behind, and PGlite then
+  // refuses to start. Only one local server uses this folder, so a leftover lock is always stale.
+  const lock = path.join(dir, 'postmaster.pid');
+  if (existsSync(lock)) rmSync(lock);
   client = new PGlite(dir);
   closeFn = () => client.close();
 }
