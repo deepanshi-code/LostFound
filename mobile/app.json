@@ -2,6 +2,7 @@
   "expo": {
     "name": "Campus Lost & Found",
     "slug": "campus-lost-and-found",
+    "scheme": "campuslostfound",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

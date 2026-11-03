@@ -33,7 +33,7 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please wait a few minutes and try again.' },
 });
 
-const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone });
+const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, notify_email: u.notify_email });
 const findUser = (email) => one('SELECT * FROM users WHERE email = $1', [normEmail(email)]);
 const normEmail = (email) => String(email || '').trim().toLowerCase();
 const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
@@ -182,6 +182,14 @@ router.post('/reset', authLimiter, async (req, res) => {
 
 router.get('/me', requireAuth, async (req, res) => {
   const user = await one('SELECT * FROM users WHERE id = $1', [req.userId]);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ user: publicUser(user) });
+});
+
+// Settings the user can change themselves: { notify_email: true|false }
+router.patch('/me', requireAuth, async (req, res) => {
+  if (typeof req.body.notify_email !== 'boolean') return res.status(400).json({ error: 'notify_email must be true or false' });
+  const user = await one('UPDATE users SET notify_email = $1 WHERE id = $2 RETURNING *', [req.body.notify_email, req.userId]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user: publicUser(user) });
 });

@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { API_URL } from '../config';
 import { font, useStyles, useTheme } from '../theme';
-import { Avatar, ScreenHeader, Segmented, useUi } from '../ui';
+import { Avatar, ErrorText, ScreenHeader, Segmented, useUi } from '../ui';
 
 const STEPS = [
   ['add-circle-outline', 'Report it', 'Post what you lost or found, with a photo if you can.'],
@@ -17,11 +17,25 @@ const STEPS = [
 ];
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, setUser, signOut } = useAuth();
   const { mode, setMode, colors: c } = useTheme();
   const s = useStyles(makeStyles);
   const ui = useUi();
   const [stats, setStats] = useState(null);
+  const [error, setError] = useState('');
+
+  // Flip the switch straight away, and put it back if the server says no
+  const toggleEmails = async (on) => {
+    setError('');
+    setUser({ ...user, notify_email: on });
+    try {
+      const data = await api('/auth/me', { method: 'PATCH', body: { notify_email: on } });
+      setUser(data.user);
+    } catch (e) {
+      setUser({ ...user, notify_email: !on });
+      setError(e.message);
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     Promise.all([api('/items/mine'), api('/claims/mine')])
@@ -71,6 +85,23 @@ export default function ProfileScreen() {
         value={mode}
         onChange={setMode}
       />
+
+      <View style={[s.settingRow, { marginTop: 26 }]}>
+        <Ionicons name="mail-unread-outline" size={24} color={c.text} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.rowTitle}>Email notifications</Text>
+          <Text style={s.rowSub}>New responses, approvals and possible matches</Text>
+        </View>
+        <Switch
+          value={user.notify_email !== false}
+          onValueChange={toggleEmails}
+          trackColor={{ false: c.border, true: c.primary }}
+          thumbColor="#fff"
+          activeThumbColor="#fff"
+          accessibilityLabel="Email notifications"
+        />
+      </View>
+      <ErrorText>{error}</ErrorText>
 
       <View style={s.divider} />
       <Text style={s.section}>How it works</Text>

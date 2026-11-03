@@ -92,7 +92,38 @@ export async function sendCode(to, name, code, purpose) {
     console.log(`\n[mail:dev] To: ${to} | ${p.heading} | CODE: ${code}\n`);
     return;
   }
+  await deliver(to, name, subject, text, html);
+}
 
+// The web app, for links in emails. Item pages open at APP_URL/item/<id>.
+export const APP_URL = (process.env.APP_URL || 'https://lostfound-mobile.vercel.app').replace(/\/$/, '');
+
+// A short notice with one button, e.g. "Someone responded to your post". Never include contact details.
+export async function sendNotice(to, name, { subject, heading, lines, button, link }) {
+  const url = APP_URL + link;
+  const footer = 'You can turn these emails off in the app under Profile.';
+  const text = `Hi ${name},\n\n${lines.join('\n\n')}\n\n${button}: ${url}\n\n${footer}\n\nCampus Lost & Found`;
+  const html = `
+    <div style="background:#F3F6FD;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
+      <div style="max-width:440px;margin:auto;background:#ffffff;border-radius:20px;padding:28px;color:#0E1530">
+        <div style="font-size:15px;font-weight:bold;color:#2F5BFF">Campus Lost &amp; Found</div>
+        <h2 style="margin:16px 0 8px;font-size:22px">${escapeHtml(heading)}</h2>
+        <p style="margin:0 0 12px;color:#59627D;font-size:15px">Hi ${escapeHtml(name)},</p>
+        ${lines.map((l) => `<p style="margin:0 0 12px;color:#59627D;font-size:15px;line-height:22px">${escapeHtml(l)}</p>`).join('')}
+        <a href="${url}" style="display:inline-block;margin-top:8px;background:#2F5BFF;color:#ffffff;text-decoration:none;
+                  font-weight:bold;font-size:15px;padding:12px 22px;border-radius:12px">${escapeHtml(button)}</a>
+        <p style="margin:22px 0 0;color:#98A0B8;font-size:13px">${footer}</p>
+      </div>
+    </div>`;
+
+  if (mode === 'console') {
+    console.log(`\n[mail:dev] To: ${to} | ${subject} | ${url}\n`);
+    return;
+  }
+  await deliver(to, name, subject, text, html);
+}
+
+async function deliver(to, name, subject, text, html) {
   if (mode === 'brevo') {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',

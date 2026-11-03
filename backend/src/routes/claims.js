@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { one, query } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { notifyDecision } from '../notify.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,6 +23,14 @@ router.get('/mine', async (req, res) => {
   res.json({ claims });
 });
 
+// For the badge on the Activity tab: responses on my open posts that I haven't decided yet
+router.get('/pending-count', async (req, res) => {
+  const row = await one(`
+    SELECT COUNT(*)::int AS count FROM claims c JOIN items i ON i.id = c.item_id
+    WHERE i.user_id = $1 AND i.status = 'open' AND c.status = 'pending'`, [req.userId]);
+  res.json(row);
+});
+
 // Poster approves or rejects a response. Approving reveals contact details to both sides.
 router.patch('/:id', async (req, res) => {
   const claim = /^\d+$/.test(req.params.id)
@@ -38,6 +47,10 @@ router.patch('/:id', async (req, res) => {
   }
   await query('UPDATE claims SET status = $1 WHERE id = $2', [status, claim.id]);
   res.json({ ok: true, status });
+
+  if (claim.status !== status) {
+    notifyDecision(claim, status).catch((e) => console.error('[notify] decision failed:', e.message));
+  }
 });
 
 export default router;

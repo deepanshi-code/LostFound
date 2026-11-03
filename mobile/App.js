@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -11,6 +11,7 @@ import {
   useFonts, PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
+import { api } from './src/api';
 import { AuthProvider, useAuth } from './src/AuthContext';
 import { BrandGradient } from './src/decor';
 import { font, ThemeProvider, useTheme } from './src/theme';
@@ -25,6 +26,20 @@ import ItemDetailScreen from './src/screens/ItemDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const navigationRef = createNavigationContainerRef();
+
+// URLs for screens, so links in emails (https://…/item/12) open the right item
+const linking = {
+  prefixes: ['campuslostfound://', 'https://lostfound-mobile.vercel.app'],
+  config: {
+    initialRouteName: 'Home', // so Back from a linked item goes to the app, not out of it
+    screens: {
+      Home: { screens: { Browse: '', Explore: 'explore', Report: 'report', Activity: 'activity', Profile: 'profile' } },
+      ItemDetail: { path: 'item/:id', parse: { id: Number } },
+    },
+  },
+};
+const itemIdFromUrl = (url) => Number(String(url || '').match(/\/item\/(\d+)/)?.[1]) || null;
 
 // Outline icon normally, filled when the tab is active
 const tabIcon = (name) => ({ focused, color }) => (
@@ -51,8 +66,20 @@ function ReportButton({ onPress, accessibilityState }) {
 
 function Tabs() {
   const { colors: c } = useTheme();
+  // Responses waiting for my approval, shown as a badge on Activity
+  const [pending, setPending] = useState(0);
+  const refreshBadge = useCallback(() => {
+    api('/claims/pending-count').then((r) => setPending(r.count)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshBadge();
+    const timer = setInterval(refreshBadge, 60_000);
+    return () => clearInterval(timer);
+  }, [refreshBadge]);
+
   return (
     <Tab.Navigator
+      screenListeners={{ focus: refreshBadge }}
       screenOptions={{
         headerShown: false, // each tab draws its own large title
         tabBarActiveTintColor: c.primary,
@@ -64,7 +91,10 @@ function Tabs() {
       <Tab.Screen name="Browse" component={FeedScreen} options={{ title: 'Campus Lost & Found', tabBarLabel: 'Home', tabBarIcon: tabIcon('home') }} />
       <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: 'Explore', tabBarIcon: tabIcon('compass') }} />
       <Tab.Screen name="Report" component={PostScreen} options={{ title: 'Report an item', tabBarLabel: () => null, tabBarButton: (props) => <ReportButton {...props} /> }} />
-      <Tab.Screen name="Activity" component={ActivityScreen} options={{ title: 'Activity', tabBarIcon: tabIcon('albums') }} />
+      <Tab.Screen name="Activity" component={ActivityScreen} options={{
+        title: 'Activity', tabBarIcon: tabIcon('albums'), tabBarBadge: pending || undefined,
+        tabBarBadgeStyle: { backgroundColor: c.lost, color: '#fff', fontFamily: font.bold, fontSize: 11 },
+      }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', tabBarIcon: tabIcon('person') }} />
     </Tab.Navigator>
   );
@@ -84,6 +114,18 @@ function Root() {
     setOnboarded(true);
     AsyncStorage.setItem(ONBOARDED_KEY, '1').catch(() => {});
   };
+
+  // An item link opened while logged out is remembered and opened right after login
+  const pendingItem = useRef(null);
+  useEffect(() => {
+    Linking.getInitialURL().then((url) => { pendingItem.current = itemIdFromUrl(url); }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!user || !pendingItem.current || !navigationRef.isReady()) return;
+    const id = pendingItem.current;
+    pendingItem.current = null;
+    navigationRef.navigate('ItemDetail', { id });
+  }, [user]);
 
   if (loading || onboarded === null) {
     return (
@@ -130,7 +172,7 @@ function ThemedApp() {
 
   return (
     <>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking}>
         <Root />
       </NavigationContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />

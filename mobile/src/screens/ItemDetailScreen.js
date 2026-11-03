@@ -111,7 +111,7 @@ export default function ItemDetailScreen({ route, navigation }) {
     }
   };
   const share = async () => {
-    const text = `${isFound ? 'Found' : 'Lost'}: ${item.title} at ${item.location}. Seen it? Check Campus Lost & Found: ${SITE}`;
+    const text = `${isFound ? 'Found' : 'Lost'}: ${item.title} at ${item.location}. Seen it? Check Campus Lost & Found: ${SITE}/item/${item.id}`;
     try {
       if (Platform.OS === 'web' && !navigator.share) {
         await navigator.clipboard.writeText(text);

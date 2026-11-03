@@ -5,6 +5,7 @@ import path from 'node:path';
 import { CATEGORIES, one, query } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { findMatches } from '../matching.js';
+import { notifyMatches, notifyNewResponse } from '../notify.js';
 import { deleteImage, publicImagePath, saveImage } from '../storage.js';
 
 // Photos are kept in memory, validated, then handed to storage (Supabase or local disk)
@@ -29,6 +30,11 @@ const withImageUrl = (item) => ({ ...item, image_url: publicImagePath(item.image
 
 // Non-numeric ids would make Postgres throw, so treat them as "not found"
 const getItem = (id) => (/^\d+$/.test(String(id)) ? one(`${ITEM_SELECT} WHERE i.id = $1`, [Number(id)]) : undefined);
+
+// Open posts of the opposite type, same category, by other people
+const candidatesFor = (item) => query(
+  `${ITEM_SELECT} WHERE i.type = $1 AND i.category = $2 AND i.status = 'open' AND i.user_id != $3`,
+  [item.type === 'lost' ? 'found' : 'lost', item.category, item.user_id]);
 
 router.get('/categories', (_req, res) => res.json({ categories: CATEGORIES }));
 
@@ -96,11 +102,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/matches', async (req, res) => {
   const item = await getItem(req.params.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
-  const opposite = item.type === 'lost' ? 'found' : 'lost';
-  const candidates = await query(
-    `${ITEM_SELECT} WHERE i.type = $1 AND i.category = $2 AND i.status = 'open' AND i.user_id != $3`,
-    [opposite, item.category, item.user_id]);
-  res.json({ matches: findMatches(item, candidates).map(withImageUrl) });
+  res.json({ matches: findMatches(item, await candidatesFor(item)).map(withImageUrl) });
 });
 
 router.post('/', upload.single('image'), async (req, res) => {
@@ -131,7 +133,13 @@ router.post('/', upload.single('image'), async (req, res) => {
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
     [req.userId, type, title, description, category, location, date, imagePath]);
 
-  res.status(201).json({ item: withImageUrl(await getItem(id)) });
+  const item = await getItem(id);
+  res.status(201).json({ item: withImageUrl(item) });
+
+  // After replying: email owners of posts this one looks like a match for
+  candidatesFor(item)
+    .then((candidates) => notifyMatches(item, findMatches(item, candidates)))
+    .catch((e) => console.error('[notify] matches failed:', e.message));
 });
 
 router.patch('/:id/status', async (req, res) => {
@@ -173,6 +181,10 @@ router.post('/:id/claims', async (req, res) => {
   }
   const claim = await one('INSERT INTO claims (item_id, claimant_id, message) VALUES ($1, $2, $3) RETURNING *', [item.id, req.userId, message]);
   res.status(201).json({ claim });
+
+  one('SELECT name FROM users WHERE id = $1', [req.userId])
+    .then((responder) => notifyNewResponse(item, responder.name))
+    .catch((e) => console.error('[notify] response failed:', e.message));
 });
 
 export default router;

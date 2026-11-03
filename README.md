@@ -16,6 +16,7 @@ Log in with a demo account (password `demo1234`): `rohan@campus.test` or `aisha@
 - **Automatic matching** of lost reports against found reports.
 - **Ownership check.** Claimants must describe a detail that isn't in the post.
 - **Privacy by default.** Email and phone are shared only after the poster approves.
+- **Email notifications** when someone responds to your post, when your response is approved or declined, and when a new post looks like a match for yours. Each email links straight to the item. Can be turned off in Profile.
 - **Light, dark and system themes.**
 
 ## Tech stack
@@ -76,6 +77,7 @@ Copy `backend/.env.example` to `backend/.env`:
 | `ALLOWED_EMAIL_DOMAIN` | Only these email domains can sign up, comma-separated, e.g. `geu.ac.in,gehu.ac.in`. The match is exact: subdomains and look-alikes are rejected. Empty means anyone can sign up. |
 | `BREVO_API_KEY` | Sends codes through Brevo's HTTPS API (free: 300 emails a day). Needed on Render's free plan, which blocks SMTP. Takes priority over SMTP. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Mail server for verification and reset codes (fine locally). If no email is configured, codes are printed in the backend terminal. |
+| `APP_URL` | Web app address used for links in notification emails (default `https://lostfound-mobile.vercel.app`). |
 | `MAIL_FROM` | Sender, e.g. `Campus Lost & Found <you@gmail.com>`. With Brevo it must be a sender address verified in Brevo. |
 
 ### Email verification
@@ -156,6 +158,7 @@ All routes except register and login need `Authorization: Bearer <token>`.
 | POST | `/api/auth/forgot` | `{email}`: emails a reset code (same reply whether or not the account exists) |
 | POST | `/api/auth/reset` | `{email, code, password}` returns `{token, user}` |
 | GET | `/api/auth/me` | Current user |
+| PATCH | `/api/auth/me` | `{notify_email: true \| false}`: turn notification emails on or off |
 | GET | `/api/items?type=&category=&q=&status=` | Feed (defaults to open items) |
 | GET | `/api/items/mine` | My posts, with pending response counts |
 | GET | `/api/items/:id` | Detail. The owner also gets responses; others get their own response |
@@ -165,11 +168,12 @@ All routes except register and login need `Authorization: Bearer <token>`.
 | DELETE | `/api/items/:id` | Owner only |
 | POST | `/api/items/:id/claims` | `{message}`: respond to a post |
 | GET | `/api/claims/mine` | Responses I sent |
+| GET | `/api/claims/pending-count` | Responses waiting for my decision (Activity badge) |
 | PATCH | `/api/claims/:id` | `{status: "approved" \| "rejected"}` (poster only) |
 
 ## Known limitations / next steps
 
-- **No notifications yet.** Users must open the app to see new responses. Next step: Expo push notifications.
+- **Notifications are email only.** Phone push notifications (Expo push) would be faster. Demo accounts on `@campus.test` never get emails, and Brevo's free plan allows 300 emails a day.
 - **Matching is keyword-based.** "Specs" won't match "glasses". Options: a synonym list, or text embeddings, measured against the current baseline.
 - **Free-tier limits.** Supabase free: 500 MB database and 1 GB photos, and the project pauses after a week without traffic (resume it in the dashboard). Photos are not resized yet; resizing on upload would save space.
 - **The token is kept in AsyncStorage.** On native builds, `expo-secure-store` is more secure.

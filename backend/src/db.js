@@ -93,6 +93,9 @@ export async function initDb() {
       created_at BIGINT NOT NULL
     );
 
+    -- Added later, so existing databases get it too (on by default)
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT TRUE;
+
     CREATE INDEX IF NOT EXISTS idx_items_type_status ON items (type, status);
     CREATE INDEX IF NOT EXISTS idx_claims_item ON claims (item_id);
     CREATE INDEX IF NOT EXISTS idx_email_codes_user ON email_codes (user_id, purpose);
