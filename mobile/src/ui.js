@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator, Alert, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { categoryMeta } from './config';
@@ -277,6 +279,25 @@ export function EmptyState({ icon, title, subtitle, action }) {
   );
 }
 
+// Bottom sheet (a centred panel on wide screens). Tapping outside closes it.
+export function Sheet({ visible, onClose, title, subtitle, children }) {
+  const ui = useUi();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={ui.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={ui.sheetWrap} pointerEvents="box-none">
+        <View style={[ui.sheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View style={ui.sheetGrabber} />
+          {title ? <Text style={ui.sheetTitle}>{title}</Text> : null}
+          {subtitle ? <Text style={[ui.muted, { marginBottom: 16 }]}>{subtitle}</Text> : null}
+          {children}
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export function SectionTitle({ children, right, style }) {
   const ui = useUi();
   return (
@@ -352,4 +373,13 @@ const uiStyles = (c) => ({
   sectionTitle: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
   sectionRight: { fontFamily: font.medium, fontSize: 13, color: c.muted },
   divider: { height: 1, backgroundColor: c.divider },
+
+  sheetBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: c.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingTop: 10,
+    width: '100%', maxWidth: 560, alignSelf: 'center', maxHeight: '85%', borderWidth: 1, borderColor: c.divider, borderBottomWidth: 0,
+  },
+  sheetGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontFamily: font.bold, fontSize: 19, color: c.text, letterSpacing: -0.4, marginBottom: 4 },
 });

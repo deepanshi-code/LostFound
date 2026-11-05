@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Share, Text, useWindowDimensions, View,
-} from 'react-native';
+import { Image, Linking, Platform, Pressable, ScrollView, Share, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { api, imageUrl } from '../api';
@@ -9,12 +7,13 @@ import { categoryMeta } from '../config';
 import GridCard from '../GridCard';
 import { font, tint, useStyles, useTheme } from '../theme';
 import {
-  Avatar, Banner, Button, confirm, EmptyState, ErrorText, Field, formatDate, ListRow, Skeleton,
-  StatusPill, timeAgo, useUi,
+  Avatar, Banner, Button, confirm, EmptyState, ErrorText, Field, formatDate, Sheet, Skeleton, StatusPill, timeAgo, useUi,
 } from '../ui';
 
 const SITE = 'https://lostfound-mobile.vercel.app';
 
+// Linear-style layout: photo, title, one compact properties panel, then a quiet activity list.
+// On wide screens the photo sits on the left and everything else on the right.
 export default function ItemDetailScreen({ route, navigation }) {
   const { id, justPosted } = route.params;
   const { colors: c, isDark } = useTheme();
@@ -60,31 +59,23 @@ export default function ItemDetailScreen({ route, navigation }) {
     }
   };
 
-  const heroHeight = wide ? 440 : Math.min(width * 0.9, 420);
-  const back = (
-    <Pressable onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'))} style={s.round} accessibilityLabel="Back">
-      <Ionicons name="chevron-back" size={20} color="#222" />
-    </Pressable>
-  );
+  const goBack = () => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home'));
+  const photoHeight = wide ? 520 : Math.min((width - 32) * 0.8, 440);
 
   if (!data) {
     return (
-      <View style={[ui.screen, { backgroundColor: c.bg }]}>
+      <View style={[ui.screen, { backgroundColor: c.bg, paddingTop: insets.top }]}>
+        <TopBar s={s} c={c} onBack={goBack} />
         {error ? (
-          <View style={{ paddingTop: insets.top + 60 }}>
-            <EmptyState icon="alert-circle-outline" title="Couldn't load this item" subtitle={error} />
-          </View>
+          <EmptyState icon="alert-circle-outline" title="Couldn't load this item" subtitle={error} />
         ) : (
-          <View style={[s.page, wide && s.pageWide]}>
-            <Skeleton height={heroHeight} radius={wide ? 20 : 0} />
-            <View style={s.body}>
-              <Skeleton width="70%" height={26} />
-              <Skeleton width="45%" height={14} style={{ marginTop: 12 }} />
-              <Skeleton height={60} style={{ marginTop: 28 }} radius={14} />
-            </View>
+          <View style={s.narrow}>
+            <Skeleton height={photoHeight} radius={18} />
+            <Skeleton width="30%" height={14} style={{ marginTop: 20 }} />
+            <Skeleton width="75%" height={28} style={{ marginTop: 12 }} />
+            <Skeleton height={150} radius={14} style={{ marginTop: 24 }} />
           </View>
         )}
-        <View style={[s.floating, { top: insets.top + 12 }]}>{back}</View>
       </View>
     );
   }
@@ -93,11 +84,12 @@ export default function ItemDetailScreen({ route, navigation }) {
   const isFound = item.type === 'found';
   const resolved = item.status === 'resolved';
   const uri = imageUrl(item.image_url);
+  const meta = categoryMeta(item.category);
   const canRespond = !item.is_mine && !myClaim && !resolved;
 
   const sendClaim = async () => {
     const ok = await run(() => api(`/items/${id}/claims`, { method: 'POST', body: { message } }))();
-    if (ok) { setMessage(''); setSheet(false); setNotice('Response sent. You\'ll see the reply here.'); }
+    if (ok) { setMessage(''); setSheet(false); setNotice('Response sent. You\'ll get an email when the poster replies.'); }
   };
   const decide = (claimId, status) => run(() => api(`/claims/${claimId}`, { method: 'PATCH', body: { status } }));
   const setStatus = (status) => run(() => api(`/items/${id}/status`, { method: 'PATCH', body: { status } }));
@@ -105,7 +97,7 @@ export default function ItemDetailScreen({ route, navigation }) {
     if (!(await confirm('Delete this post?', 'This cannot be undone.'))) return;
     try {
       await api(`/items/${id}`, { method: 'DELETE' });
-      navigation.goBack();
+      goBack();
     } catch (e) {
       setError(e.message);
     }
@@ -115,246 +107,301 @@ export default function ItemDetailScreen({ route, navigation }) {
     try {
       if (Platform.OS === 'web' && !navigator.share) {
         await navigator.clipboard.writeText(text);
-        setNotice('Copied to clipboard. Paste it in your class group.');
+        setNotice('Link copied. Paste it in your class group.');
       } else {
         await Share.share({ message: text });
       }
     } catch { /* cancelled */ }
   };
 
-  return (
-    <View style={[ui.screen, { backgroundColor: c.bg }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: (canRespond || item.is_mine) ? 120 : 48 }}>
-        <View style={[s.page, wide && s.pageWide]}>
-          {/* Photo */}
-          <View style={[s.hero, { height: heroHeight }, wide && { borderRadius: 20, marginTop: insets.top + 64 }]}>
-            {uri ? (
-              <Image source={{ uri }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
-            ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: tint(categoryMeta(item.category).color, isDark) }}>
-                <Ionicons name={categoryMeta(item.category).icon} size={80} color={categoryMeta(item.category).color} />
-              </View>
-            )}
+  // The one main action on this page
+  const action = item.is_mine
+    ? resolved
+      ? <Button title="Reopen post" variant="outline" onPress={setStatus('open')} disabled={busy} />
+      : <Button title={isFound ? 'Mark as returned' : 'I got it back'} icon="checkmark" onPress={setStatus('resolved')} disabled={busy} />
+    : canRespond
+      ? <Button title={isFound ? 'This is mine' : 'I found this'} onPress={() => setSheet(true)} />
+      : null;
+
+  const photo = (
+    <View style={[s.photo, { height: uri ? photoHeight : Math.min(photoHeight, 190) }]}>
+      {uri ? (
+        <Image source={{ uri }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <View style={s.noPhoto}>
+          <View style={[s.noPhotoIcon, { backgroundColor: tint(meta.color, isDark) }]}>
+            <Ionicons name={meta.icon} size={30} color={meta.color} />
           </View>
-
-          <View style={s.body}>
-            {justPosted && item.is_mine ? <Banner tone="success">Your post is live. Possible matches will appear below.</Banner> : null}
-            {resolved ? <Banner tone="success" icon="checkmark-circle">This item has been returned to its owner.</Banner> : null}
-            {notice ? <Banner tone="info" icon="checkmark-circle-outline">{notice}</Banner> : null}
-
-            <Text style={s.title}>{item.title}</Text>
-            <Text style={s.subtitle}>
-              {resolved ? 'Returned' : isFound ? 'Found' : 'Lost'} · {item.location} · {timeAgo(item.created_at)}
-            </Text>
-
-            <View style={s.divider} />
-            <View style={s.poster}>
-              <Avatar name={item.poster_name} size={48} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.posterName}>{item.is_mine ? 'You posted this' : `${isFound ? 'Found' : 'Lost'} by ${item.poster_name}`}</Text>
-                <Text style={s.posterSub}>{item.is_mine ? 'Responses and matches are below' : 'Contact details are shared only after approval'}</Text>
-              </View>
-            </View>
-            <View style={s.divider} />
-
-            {item.description ? <Text style={s.description}>{item.description}</Text> : null}
-
-            <Text style={s.section}>Details</Text>
-            <Detail icon="location-outline" label={isFound ? 'Found at' : 'Lost at'} value={item.location} s={s} c={c} />
-            <Detail icon="calendar-outline" label="Date" value={formatDate(item.date_occurred)} s={s} c={c} />
-            <Detail icon={categoryMeta(item.category).icon} label="Category" value={item.category} s={s} c={c} />
-
-            <ErrorText>{error}</ErrorText>
-
-            {item.is_mine ? (
-              <>
-                <View style={s.divider} />
-                <Text style={s.section}>Responses {claims.length ? `· ${claims.length}` : ''}</Text>
-                {claims.length === 0 ? (
-                  <Text style={s.muted}>No responses yet. You'll see them here when someone replies.</Text>
-                ) : (
-                  claims.map((cl) => (
-                    <View key={cl.id} style={s.response}>
-                      <View style={s.responseHead}>
-                        <Avatar name={cl.claimant_name} size={36} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.responseName}>{cl.claimant_name}</Text>
-                          <Text style={s.muted}>{timeAgo(cl.created_at)}</Text>
-                        </View>
-                        <StatusPill status={cl.status} />
-                      </View>
-                      <Text style={s.responseText}>{cl.message}</Text>
-                      {cl.status === 'pending' ? (
-                        <View style={s.row}>
-                          <Button title="Approve" icon="checkmark" size="sm" onPress={decide(cl.id, 'approved')} disabled={busy} style={{ flex: 1 }} />
-                          <Button title="Decline" variant="outline" size="sm" onPress={decide(cl.id, 'rejected')} disabled={busy} style={{ flex: 1 }} />
-                        </View>
-                      ) : null}
-                      {cl.status === 'approved' ? <Contact email={cl.claimant_email} phone={cl.claimant_phone} /> : null}
-                    </View>
-                  ))
-                )}
-
-                <View style={s.divider} />
-                <Text style={s.section}>Possible matches</Text>
-                {matches.length === 0 ? (
-                  <Text style={s.muted}>No similar {isFound ? 'lost' : 'found'} reports yet. We compare category, keywords, place and date.</Text>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }} style={{ marginHorizontal: -24, paddingHorizontal: 24 }}>
-                    {matches.map((m, i) => (
-                      <View key={m.id} style={{ width: 200 }}>
-                        <GridCard item={m} index={i} onPress={() => navigation.push('ItemDetail', { id: m.id })} />
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-
-                <Pressable onPress={remove} style={s.deleteLink} hitSlop={8}>
-                  <Ionicons name="trash-outline" size={16} color={c.danger} />
-                  <Text style={s.deleteText}>Delete this post</Text>
-                </Pressable>
-              </>
-            ) : myClaim ? (
-              <>
-                <View style={s.divider} />
-                <Text style={s.section}>Your response</Text>
-                <View style={s.response}>
-                  <View style={s.responseHead}>
-                    <Text style={[s.responseName, { flex: 1 }]}>Sent {timeAgo(myClaim.created_at)}</Text>
-                    <StatusPill status={myClaim.status} />
-                  </View>
-                  <Text style={s.responseText}>{myClaim.message}</Text>
-                  {myClaim.status === 'pending' ? <Text style={s.muted}>Waiting for {item.poster_name} to review it.</Text> : null}
-                  {myClaim.status === 'rejected' ? <Text style={s.muted}>The poster didn't think this was a match.</Text> : null}
-                  {myClaim.status === 'approved' ? (
-                    <>
-                      <Text style={s.muted}>Approved. Contact {item.poster_name} to arrange the handover.</Text>
-                      <Contact email={posterContact?.email} phone={posterContact?.phone} />
-                    </>
-                  ) : null}
-                </View>
-              </>
-            ) : null}
-          </View>
+          <Text style={s.noPhotoText}>No photo added</Text>
         </View>
-      </ScrollView>
+      )}
+    </View>
+  );
 
-      {/* Floating round buttons over the photo */}
-      <View style={[s.floating, { top: insets.top + 12 }, wide && s.floatingWide]}>
-        {back}
-        <Pressable onPress={share} style={s.round} accessibilityLabel="Share">
-          <Ionicons name="share-outline" size={19} color="#222" />
-        </Pressable>
+  const details = (
+    <View>
+      {justPosted && item.is_mine ? <Banner tone="success">Your post is live. You'll get an email if someone responds or a match is posted.</Banner> : null}
+      {notice ? <Banner tone="info" icon="checkmark-circle-outline">{notice}</Banner> : null}
+
+      <View style={s.statusRow}>
+        <StatusPill status={resolved ? 'resolved' : item.type} />
+        <Text style={s.statusMeta}>{timeAgo(item.created_at)}</Text>
+      </View>
+      <Text style={[s.title, wide && { fontSize: 34, lineHeight: 40 }]}>{item.title}</Text>
+      {item.description ? <Text style={s.description}>{item.description}</Text> : null}
+
+      <View style={s.props}>
+        <Prop label={isFound ? 'Found at' : 'Lost at'} s={s}>
+          <Text style={s.propValue}>{item.location}</Text>
+        </Prop>
+        <Prop label="Date" s={s}>
+          <Text style={s.propValue}>{formatDate(item.date_occurred)}</Text>
+        </Prop>
+        <Prop label="Category" s={s}>
+          <View style={s.propInline}>
+            <Ionicons name={meta.icon} size={15} color={meta.color} />
+            <Text style={s.propValue}>{item.category}</Text>
+          </View>
+        </Prop>
+        <Prop label="Posted by" s={s} last>
+          <View style={s.propInline}>
+            <Avatar name={item.poster_name} size={20} />
+            <Text style={s.propValue}>{item.is_mine ? 'You' : item.poster_name}</Text>
+          </View>
+        </Prop>
       </View>
 
-      {/* Sticky action bar */}
-      {canRespond || item.is_mine ? (
-        <View style={[s.bar, { paddingBottom: insets.bottom + 14 }]}>
-          <View style={[s.barInner, wide && { maxWidth: 1000 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.barTitle}>
-                {item.is_mine ? (resolved ? 'Returned to its owner' : 'Got it back to its owner?') : isFound ? 'Is this yours?' : 'Did you find this?'}
-              </Text>
-              <Text style={s.barSub} numberOfLines={1}>
-                {item.is_mine ? 'Close the post once it\'s handed over' : isFound ? 'Prove it with a detail that isn\'t shown' : 'Tell the owner where it is now'}
-              </Text>
-            </View>
-            {item.is_mine ? (
-              resolved
-                ? <Button title="Reopen" variant="outline" onPress={setStatus('open')} disabled={busy} />
-                : <Button title={isFound ? 'Mark returned' : 'Got it back'} onPress={setStatus('resolved')} disabled={busy} />
-            ) : (
-              <Button title={isFound ? 'Claim it' : 'I found it'} onPress={() => setSheet(true)} />
-            )}
-          </View>
+      {!item.is_mine && !myClaim ? (
+        <View style={s.note}>
+          <Ionicons name="lock-closed-outline" size={14} color={c.faint} />
+          <Text style={s.noteText}>Contact details are shared only after the poster approves.</Text>
         </View>
       ) : null}
 
-      {/* Bottom sheet for claiming */}
-      <Modal visible={sheet} transparent animationType="slide" onRequestClose={() => setSheet(false)}>
-        <Pressable style={s.backdrop} onPress={() => setSheet(false)} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.sheetWrap} pointerEvents="box-none">
-          <View style={[s.sheet, { paddingBottom: insets.bottom + 20 }]}>
-            <View style={s.grabber} />
-            <Text style={s.sheetTitle}>{isFound ? 'Is this yours?' : 'Did you find this?'}</Text>
-            <Text style={[s.muted, { marginBottom: 16 }]}>
-              {isFound
-                ? 'Describe something that isn\'t in the post, like a mark, the contents or the lock screen, so the finder can check it\'s yours.'
-                : 'Tell the owner where you found it and where it is now.'}
+      <ErrorText>{error}</ErrorText>
+      {wide && action ? <View style={{ marginTop: 20 }}>{action}</View> : null}
+
+      {item.is_mine ? (
+        <>
+          <SectionLabel s={s} count={claims.length}>Responses</SectionLabel>
+          {claims.length === 0 ? (
+            <Text style={s.empty}>No responses yet. We'll email you when someone replies.</Text>
+          ) : (
+            claims.map((cl, i) => (
+              <Activity key={cl.id} s={s} name={cl.claimant_name} time={cl.created_at} message={cl.message} last={i === claims.length - 1}>
+                {cl.status === 'pending' ? (
+                  <View style={s.decide}>
+                    <Button title="Approve" size="sm" onPress={decide(cl.id, 'approved')} disabled={busy} />
+                    <Button title="Decline" size="sm" variant="secondary" onPress={decide(cl.id, 'rejected')} disabled={busy} />
+                  </View>
+                ) : (
+                  <View style={{ marginTop: 10 }}><StatusPill status={cl.status} /></View>
+                )}
+                {cl.status === 'approved' ? <Contact s={s} c={c} email={cl.claimant_email} phone={cl.claimant_phone} /> : null}
+              </Activity>
+            ))
+          )}
+
+          <SectionLabel s={s} count={matches.length || null}>Possible matches</SectionLabel>
+          {matches.length === 0 ? (
+            <Text style={s.empty}>Nothing similar yet. We compare category, keywords, place and date.</Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+              {matches.map((m, i) => (
+                <View key={m.id} style={{ width: 180 }}>
+                  <GridCard item={m} index={i} onPress={() => navigation.push('ItemDetail', { id: m.id })} />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          <Pressable onPress={remove} style={({ hovered }) => [s.delete, hovered && { opacity: 0.7 }]} hitSlop={8}>
+            <Ionicons name="trash-outline" size={15} color={c.danger} />
+            <Text style={s.deleteText}>Delete post</Text>
+          </Pressable>
+        </>
+      ) : myClaim ? (
+        <>
+          <SectionLabel s={s}>Your response</SectionLabel>
+          <Activity s={s} name="You" time={myClaim.created_at} message={myClaim.message} last>
+            <View style={{ marginTop: 10 }}><StatusPill status={myClaim.status} /></View>
+            <Text style={[s.empty, { marginTop: 10 }]}>
+              {myClaim.status === 'pending'
+                ? `Waiting for ${item.poster_name}. We'll email you when they decide.`
+                : myClaim.status === 'rejected'
+                  ? 'The poster didn\'t think this was a match.'
+                  : `Approved. Contact ${item.poster_name} to arrange a handover somewhere public.`}
             </Text>
-            <Field
-              value={message} onChangeText={setMessage} multiline autoFocus
-              placeholder={isFound ? 'e.g. There\'s a sticker on the back and a crack near the port' : 'e.g. Found it in Room 204, handed to the security desk'}
-              hint="Your email and phone are shared only if the poster approves."
-            />
-            <ErrorText>{sheet ? error : ''}</ErrorText>
-            <Button title="Send" icon="paper-plane-outline" onPress={sendClaim} loading={busy} />
+            {myClaim.status === 'approved' ? <Contact s={s} c={c} email={posterContact?.email} phone={posterContact?.phone} /> : null}
+          </Activity>
+        </>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View style={[ui.screen, { backgroundColor: c.bg, paddingTop: insets.top }]}>
+      <TopBar s={s} c={c} onBack={goBack} onShare={share} crumb={`${isFound ? 'Found' : 'Lost'} · ${item.category}`} wide={wide} />
+      <ScrollView contentContainerStyle={{ paddingBottom: !wide && action ? 110 : 56 }}>
+        {wide ? (
+          <View style={s.wide}>
+            <View style={{ flex: 1.15 }}>{photo}</View>
+            <View style={{ flex: 1 }}>{details}</View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        ) : (
+          <View style={s.narrow}>
+            {photo}
+            <View style={{ height: 20 }} />
+            {details}
+          </View>
+        )}
+      </ScrollView>
+
+      {!wide && action ? (
+        <View style={[s.bar, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={s.barInner}>{action}</View>
+        </View>
+      ) : null}
+
+      <Sheet
+        visible={sheet}
+        onClose={() => setSheet(false)}
+        title={isFound ? 'Is this yours?' : 'Did you find this?'}
+        subtitle={isFound
+          ? 'Describe something that isn\'t in the post, like a mark, the contents or the lock screen, so the finder can check.'
+          : 'Tell the owner where you found it and where it is now.'}
+      >
+        <Field
+          value={message} onChangeText={setMessage} multiline autoFocus
+          placeholder={isFound ? 'e.g. There\'s a sticker on the back and a crack near the port' : 'e.g. Found it in Room 204, handed to the security desk'}
+          hint="Your email and phone are shared only if the poster approves."
+        />
+        <ErrorText>{sheet ? error : ''}</ErrorText>
+        <Button title="Send response" onPress={sendClaim} loading={busy} />
+      </Sheet>
     </View>
   );
 }
 
-function Detail({ icon, label, value, s, c }) {
+function TopBar({ s, c, onBack, onShare, crumb, wide }) {
   return (
-    <View style={s.detail}>
-      <Ionicons name={icon} size={24} color={c.text} />
-      <View style={{ flex: 1 }}>
-        <Text style={s.detailValue}>{value}</Text>
-        <Text style={s.detailLabel}>{label}</Text>
+    <View style={[s.top, wide && s.topWide]}>
+      <IconButton s={s} c={c} icon="chevron-back" label="Back" onPress={onBack} />
+      <Text style={s.crumb} numberOfLines={1}>{crumb}</Text>
+      {onShare ? <IconButton s={s} c={c} icon="share-outline" label="Share" onPress={onShare} /> : <View style={{ width: 36 }} />}
+    </View>
+  );
+}
+
+function IconButton({ s, c, icon, label, onPress }) {
+  return (
+    <Pressable onPress={onPress} accessibilityLabel={label} style={({ hovered, pressed }) => [s.iconBtn, (hovered || pressed) && { backgroundColor: c.surface }]}>
+      <Ionicons name={icon} size={18} color={c.text} />
+    </Pressable>
+  );
+}
+
+function Prop({ label, children, s, last }) {
+  return (
+    <View style={[s.prop, !last && s.propBorder]}>
+      <Text style={s.propLabel}>{label}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+    </View>
+  );
+}
+
+function SectionLabel({ children, count, s }) {
+  return (
+    <View style={s.sectionRow}>
+      <Text style={s.section}>{children}</Text>
+      {count ? <View style={s.count}><Text style={s.countText}>{count}</Text></View> : null}
+    </View>
+  );
+}
+
+// One entry in the activity list: avatar, name and time, the message, then any actions
+function Activity({ name, time, message, children, s, last }) {
+  return (
+    <View style={s.activity}>
+      <View style={s.rail}>
+        <Avatar name={name} size={28} />
+        {!last ? <View style={s.railLine} /> : null}
+      </View>
+      <View style={{ flex: 1, minWidth: 0, paddingBottom: last ? 0 : 22 }}>
+        <Text style={s.activityHead}>
+          <Text style={s.activityName}>{name}</Text>
+          <Text style={s.activityTime}>  {timeAgo(time)}</Text>
+        </Text>
+        <Text style={s.activityText}>{message}</Text>
+        {children}
       </View>
     </View>
   );
 }
 
-function Contact({ email, phone }) {
-  const ui = useUi();
+function Contact({ email, phone, s, c }) {
   return (
-    <View style={[ui.group, { marginTop: 14 }]}>
-      {email ? <ListRow icon="mail-outline" label={email} onPress={() => Linking.openURL(`mailto:${email}`)} last={!phone} /> : null}
-      {phone ? <ListRow icon="call-outline" label={phone} onPress={() => Linking.openURL(`tel:${phone}`)} last /> : null}
+    <View style={s.contact}>
+      {[[email, 'mail-outline', `mailto:${email}`], [phone, 'call-outline', `tel:${phone}`]].filter(([v]) => v).map(([value, icon, url]) => (
+        <Pressable key={icon} onPress={() => Linking.openURL(url)} style={({ hovered }) => [s.contactRow, hovered && { backgroundColor: c.surface }]}>
+          <Ionicons name={icon} size={16} color={c.primary} />
+          <Text style={s.contactText} numberOfLines={1}>{value}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
 const makeStyles = (c) => ({
-  page: { width: '100%', alignSelf: 'center' },
-  pageWide: { maxWidth: 1000, paddingHorizontal: 24 },
-  hero: { width: '100%', overflow: 'hidden', backgroundColor: c.surface },
-  body: { paddingHorizontal: 24, paddingTop: 24, maxWidth: 760 },
-  floating: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between' },
-  floatingWide: { maxWidth: 1000, alignSelf: 'center', left: undefined, right: undefined, width: '100%', paddingHorizontal: 40 },
-  round: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
-  },
-  title: { fontFamily: font.bold, fontSize: 26, lineHeight: 32, color: c.text, letterSpacing: -0.6 },
-  subtitle: { fontFamily: font.regular, fontSize: 15, color: c.muted, marginTop: 6 },
-  divider: { height: 1, backgroundColor: c.divider, marginVertical: 22 },
-  poster: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  posterName: { fontFamily: font.semibold, fontSize: 16, color: c.text },
-  posterSub: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2 },
-  description: { fontFamily: font.regular, fontSize: 16, lineHeight: 25, color: c.text, marginBottom: 24 },
-  section: { fontFamily: font.bold, fontSize: 20, color: c.text, letterSpacing: -0.3, marginBottom: 16 },
-  detail: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 18 },
-  detailValue: { fontFamily: font.semibold, fontSize: 16, color: c.text },
-  detailLabel: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 1 },
-  muted: { fontFamily: font.regular, fontSize: 14, lineHeight: 21, color: c.muted },
-  response: { borderWidth: 1, borderColor: c.divider, borderRadius: 16, padding: 16, marginBottom: 12, gap: 10 },
-  responseHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  responseName: { fontFamily: font.semibold, fontSize: 15, color: c.text },
-  responseText: { fontFamily: font.regular, fontSize: 15, lineHeight: 22, color: c.text },
-  row: { flexDirection: 'row', gap: 10 },
-  deleteLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 32, alignSelf: 'flex-start' },
-  deleteText: { fontFamily: font.semibold, fontSize: 14, color: c.danger, textDecorationLine: 'underline' },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 14, paddingHorizontal: 24 },
-  barInner: { flexDirection: 'row', alignItems: 'center', gap: 16, width: '100%', alignSelf: 'center' },
-  barTitle: { fontFamily: font.bold, fontSize: 15, color: c.text },
-  barSub: { fontFamily: font.regular, fontSize: 13, color: c.muted, marginTop: 2 },
-  backdrop: { ...{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingTop: 12, width: '100%', maxWidth: 640, alignSelf: 'center' },
-  grabber: { width: 40, height: 5, borderRadius: 3, backgroundColor: c.border, alignSelf: 'center', marginBottom: 18 },
-  sheetTitle: { fontFamily: font.bold, fontSize: 22, color: c.text, letterSpacing: -0.4, marginBottom: 6 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, height: 52 },
+  topWide: { maxWidth: 1180, width: '100%', alignSelf: 'center', paddingHorizontal: 32 },
+  iconBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  crumb: { flex: 1, textAlign: 'center', fontFamily: font.medium, fontSize: 13, color: c.muted },
+
+  narrow: { paddingHorizontal: 16, width: '100%', maxWidth: 640, alignSelf: 'center' },
+  wide: { flexDirection: 'row', gap: 48, maxWidth: 1180, width: '100%', alignSelf: 'center', paddingHorizontal: 32, paddingTop: 12 },
+  photo: { width: '100%', borderRadius: 18, overflow: 'hidden', backgroundColor: c.surface },
+  noPhoto: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: c.divider, borderRadius: 18 },
+  noPhotoIcon: { width: 60, height: 60, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  noPhotoText: { fontFamily: font.medium, fontSize: 13, color: c.faint },
+
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  statusMeta: { fontFamily: font.medium, fontSize: 13, color: c.faint },
+  title: { fontFamily: font.extrabold, fontSize: 28, lineHeight: 34, color: c.text, letterSpacing: -0.9, marginTop: 12 },
+  description: { fontFamily: font.regular, fontSize: 15, lineHeight: 23, color: c.muted, marginTop: 10 },
+
+  props: { marginTop: 22, borderRadius: 14, borderWidth: 1, borderColor: c.divider, backgroundColor: c.card, paddingHorizontal: 16 },
+  prop: { flexDirection: 'row', alignItems: 'center', minHeight: 46, gap: 12 },
+  propBorder: { borderBottomWidth: 1, borderBottomColor: c.divider },
+  propLabel: { width: 92, fontFamily: font.medium, fontSize: 13, color: c.faint },
+  propValue: { fontFamily: font.semibold, fontSize: 14, color: c.text },
+  propInline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+
+  note: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  noteText: { flex: 1, fontFamily: font.regular, fontSize: 13, color: c.faint },
+
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 34, marginBottom: 16 },
+  section: { fontFamily: font.bold, fontSize: 15, color: c.text, letterSpacing: -0.2 },
+  count: { minWidth: 20, height: 20, borderRadius: 6, paddingHorizontal: 6, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontFamily: font.bold, fontSize: 11, color: c.muted },
+  empty: { fontFamily: font.regular, fontSize: 14, lineHeight: 21, color: c.faint },
+
+  activity: { flexDirection: 'row', gap: 12 },
+  rail: { alignItems: 'center' },
+  railLine: { flex: 1, width: 1, backgroundColor: c.divider, marginTop: 6 },
+  activityHead: { lineHeight: 28 },
+  activityName: { fontFamily: font.semibold, fontSize: 14, color: c.text },
+  activityTime: { fontFamily: font.regular, fontSize: 13, color: c.faint },
+  activityText: { fontFamily: font.regular, fontSize: 14, lineHeight: 21, color: c.text, marginTop: 2 },
+  decide: { flexDirection: 'row', gap: 8, marginTop: 12 },
+
+  contact: { marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: c.divider, overflow: 'hidden' },
+  contactRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, height: 44 },
+  contactText: { flex: 1, fontFamily: font.semibold, fontSize: 14, color: c.text },
+
+  delete: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 36, alignSelf: 'flex-start' },
+  deleteText: { fontFamily: font.semibold, fontSize: 13, color: c.danger },
+
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 12, paddingHorizontal: 16 },
+  barInner: { width: '100%', maxWidth: 640, alignSelf: 'center' },
 });
