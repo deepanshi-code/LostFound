@@ -46,18 +46,16 @@ const tabIcon = (name) => ({ focused, color }) => (
   <Ionicons name={focused ? name : `${name}-outline`} size={22} color={color} />
 );
 
-// The raised round "+" in the middle of the tab bar
+// The "+" in the middle of the tab bar: a compact rounded square, level with the other tabs
 function ReportButton({ onPress, accessibilityState }) {
-  const { colors: c } = useTheme();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Report an item" style={{ flex: 1, alignItems: 'center' }}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Report an item" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       {({ pressed }) => (
         <BrandGradient style={{
-          width: 58, height: 58, borderRadius: 29, marginTop: -22, alignItems: 'center', justifyContent: 'center',
-          borderWidth: 4, borderColor: c.card, boxShadow: `0 10px 22px ${c.primary}55`,
-          transform: [{ scale: pressed ? 0.92 : accessibilityState?.selected ? 1.04 : 1 }],
+          width: 44, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+          opacity: accessibilityState?.selected ? 0.85 : 1, transform: [{ scale: pressed ? 0.94 : 1 }],
         }}>
-          <Ionicons name="add" size={30} color="#fff" />
+          <Ionicons name="add" size={24} color="#fff" />
         </BrandGradient>
       )}
     </Pressable>
@@ -82,10 +80,10 @@ function Tabs() {
       screenListeners={{ focus: refreshBadge }}
       screenOptions={{
         headerShown: false, // each tab draws its own large title
-        tabBarActiveTintColor: c.primary,
+        tabBarActiveTintColor: c.text,
         tabBarInactiveTintColor: c.faint,
-        tabBarStyle: { backgroundColor: c.card, borderTopColor: c.divider, height: 68, paddingTop: 6, boxShadow: `0 -6px 24px ${c.shadow}` },
-        tabBarLabelStyle: { fontFamily: font.semibold, fontSize: 11 },
+        tabBarStyle: { backgroundColor: c.bg, borderTopColor: c.divider, height: 62, paddingTop: 6 },
+        tabBarLabelStyle: { fontFamily: font.medium, fontSize: 11 },
       }}
     >
       <Tab.Screen name="Browse" component={FeedScreen} options={{ title: 'Campus Lost & Found', tabBarLabel: 'Home', tabBarIcon: tabIcon('home') }} />

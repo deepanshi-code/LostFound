@@ -3,9 +3,9 @@ import { Image, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimen
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../api';
-import { CATEGORIES, categoryMeta } from '../config';
+import { categoryMeta } from '../config';
 import { font, useStyles, useTheme } from '../theme';
-import { Button, ErrorText, Field, formatDate, Sheet, useUi } from '../ui';
+import { Button, CategorySheet, ErrorText, Field, formatDate, PropChip, Sheet, Toggle, useUi } from '../ui';
 
 const localDate = (daysBack = 0) => {
   const d = new Date(Date.now() - daysBack * 86_400_000); // local date, not UTC
@@ -90,17 +90,10 @@ export default function PostScreen({ navigation, route }) {
   const composer = (
     <>
       {/* Lost / Found */}
-      <View style={s.toggle}>
-        {[['lost', 'I lost something'], ['found', 'I found something']].map(([value, label]) => {
-          const active = form.type === value;
-          return (
-            <Pressable key={value} onPress={() => set('type')(value)} style={[s.toggleItem, active && s.toggleActive]}>
-              <View style={[s.toggleDot, { backgroundColor: value === 'lost' ? c.lost : c.found }, !active && { opacity: 0.4 }]} />
-              <Text style={[s.toggleText, active && { color: c.text }]}>{label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Toggle
+        value={form.type} onChange={set('type')} style={{ marginBottom: 22 }}
+        options={[{ value: 'lost', label: 'I lost something', dot: c.lost }, { value: 'found', label: 'I found something', dot: c.found }]}
+      />
 
       <TextInput
         value={form.title} onChangeText={set('title')} maxLength={80}
@@ -124,14 +117,14 @@ export default function PostScreen({ navigation, route }) {
 
       {/* Properties */}
       <View style={s.chips}>
-        <PropChip s={s} c={c} icon={cat ? cat.icon : 'pricetag-outline'} iconColor={cat?.color} value={form.category} placeholder="Category" onPress={() => setPicker('category')} />
-        <PropChip s={s} c={c} icon="location-outline" value={form.location.trim()} placeholder={isLost ? 'Where you lost it' : 'Where you found it'} onPress={() => setPicker('place')} />
-        <PropChip s={s} c={c} icon="calendar-outline" value={dayLabel} onPress={() => setPicker('date')} />
+        <PropChip icon={cat ? cat.icon : 'pricetag-outline'} iconColor={cat?.color} value={form.category} placeholder="Category" onPress={() => setPicker('category')} />
+        <PropChip icon="location-outline" value={form.location.trim()} placeholder={isLost ? 'Where you lost it' : 'Where you found it'} onPress={() => setPicker('place')} />
+        <PropChip icon="calendar-outline" value={dayLabel} onPress={() => setPicker('date')} />
         {!photo ? (
-          <PropChip s={s} c={c} icon="image-outline" placeholder="Photo" onPress={() => pickPhoto(false)} />
+          <PropChip icon="image-outline" placeholder="Photo" onPress={() => pickPhoto(false)} />
         ) : null}
         {!photo && Platform.OS !== 'web' ? (
-          <PropChip s={s} c={c} icon="camera-outline" placeholder="Camera" onPress={() => pickPhoto(true)} />
+          <PropChip icon="camera-outline" placeholder="Camera" onPress={() => pickPhoto(true)} />
         ) : null}
       </View>
 
@@ -161,24 +154,7 @@ export default function PostScreen({ navigation, route }) {
         </View>
       ) : null}
 
-      <Sheet visible={picker === 'category'} onClose={() => setPicker(null)} title="Category">
-        <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={s.catGrid}>
-          {CATEGORIES.map((ct) => {
-            const active = form.category === ct.name;
-            return (
-              <Pressable
-                key={ct.name}
-                onPress={() => { set('category')(ct.name); setPicker(null); }}
-                style={({ hovered }) => [s.catRow, (active || hovered) && { backgroundColor: c.surface }]}
-              >
-                <Ionicons name={ct.icon} size={17} color={ct.color} />
-                <Text style={s.catText} numberOfLines={1}>{ct.name}</Text>
-                {active ? <Ionicons name="checkmark" size={16} color={c.text} /> : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </Sheet>
+      <CategorySheet visible={picker === 'category'} onClose={() => setPicker(null)} value={form.category} onPick={set('category')} />
 
       <Sheet visible={picker === 'place'} onClose={() => setPicker(null)} title={isLost ? 'Where did you lose it?' : 'Where did you find it?'}>
         <Field icon="location-outline" value={form.location} onChangeText={set('location')} placeholder="e.g. Library, 2nd floor" autoFocus onSubmitEditing={() => setPicker(null)} />
@@ -216,28 +192,12 @@ export default function PostScreen({ navigation, route }) {
   );
 }
 
-// A property button: shows its value once set, otherwise a quiet placeholder
-function PropChip({ icon, iconColor, value, placeholder, onPress, s, c }) {
-  return (
-    <Pressable onPress={onPress} style={({ hovered, pressed }) => [s.chip, value && s.chipSet, (hovered || pressed) && { borderColor: c.faint }]}>
-      <Ionicons name={icon} size={15} color={value ? iconColor || c.text : c.faint} />
-      <Text style={[s.chipText, value && { color: c.text }]} numberOfLines={1}>{value || placeholder}</Text>
-    </Pressable>
-  );
-}
-
 const makeStyles = (c) => ({
   page: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 150, width: '100%', maxWidth: 640, alignSelf: 'center' },
   pageWide: { maxWidth: 720, paddingTop: 48, paddingBottom: 64 },
   heading: { fontFamily: font.semibold, fontSize: 13, color: c.faint, marginBottom: 14 },
   card: { borderRadius: 18, borderWidth: 1, borderColor: c.divider, backgroundColor: c.card, padding: 24, boxShadow: `0 20px 60px ${c.shadow}` },
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginTop: 8, paddingTop: 18, borderTopWidth: 1, borderTopColor: c.divider },
-
-  toggle: { flexDirection: 'row', alignSelf: 'flex-start', padding: 3, borderRadius: 11, backgroundColor: c.surface, marginBottom: 22 },
-  toggleItem: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 32, paddingHorizontal: 12, borderRadius: 8 },
-  toggleActive: { backgroundColor: c.raised, boxShadow: `0 1px 4px ${c.shadow}` },
-  toggleDot: { width: 7, height: 7, borderRadius: 4 },
-  toggleText: { fontFamily: font.semibold, fontSize: 13, color: c.muted },
 
   title: {
     fontFamily: font.bold, fontSize: 26, letterSpacing: -0.7, color: c.text, paddingVertical: 4,
@@ -256,22 +216,13 @@ const makeStyles = (c) => ({
   },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 20, marginBottom: 8 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 7, height: 34, maxWidth: 240, paddingHorizontal: 12,
-    borderRadius: 9, borderWidth: 1, borderColor: c.divider, borderStyle: 'dashed',
-  },
-  chipSet: { borderStyle: 'solid', borderColor: c.border, backgroundColor: c.surface },
-  chipText: { fontFamily: font.medium, fontSize: 13, color: c.muted },
-
   bar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14,
     backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.divider, paddingVertical: 12, paddingHorizontal: 20,
   },
   footHint: { flex: 1, fontFamily: font.medium, fontSize: 13, color: c.faint },
 
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 42, paddingHorizontal: 12, borderRadius: 10 },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 42, paddingHorizontal: 12, borderRadius: 10, flexBasis: '48%', flexGrow: 1 },
   catText: { flex: 1, fontFamily: font.medium, fontSize: 14, color: c.text },
   dateSub: { fontFamily: font.regular, fontSize: 13, color: c.faint },
 

@@ -6,7 +6,7 @@ import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { API_URL } from '../config';
 import { font, useStyles, useTheme } from '../theme';
-import { Avatar, ErrorText, ScreenHeader, Segmented, useUi } from '../ui';
+import { Avatar, ErrorText, ScreenHeader, Toggle, useUi } from '../ui';
 
 const STEPS = [
   ['add-circle-outline', 'Report it', 'Post what you lost or found, with a photo if you can.'],
@@ -52,15 +52,14 @@ export default function ProfileScreen() {
       <ScreenHeader title="Profile" />
 
       <View style={s.account}>
-        <Avatar name={user.name} size={68} />
-        <View style={{ flex: 1 }}>
+        <Avatar name={user.name} size={52} />
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.name}>{user.name}</Text>
-          <Text style={s.email} numberOfLines={1}>{user.email}</Text>
-          {user.phone ? <Text style={s.email}>{user.phone}</Text> : null}
+          <Text style={s.email} numberOfLines={1}>{user.email}{user.phone ? `  ·  ${user.phone}` : ''}</Text>
         </View>
       </View>
 
-      <View style={s.stats}>
+      <View style={[ui.panel, s.stats]}>
         <Stat value={stats?.posts} label="Posts" s={s} />
         <View style={s.statLine} />
         <Stat value={stats?.returned} label="Returned" s={s} />
@@ -68,59 +67,54 @@ export default function ProfileScreen() {
         <Stat value={stats?.responses} label="Responses" s={s} />
       </View>
 
-      <Text style={s.section}>Settings</Text>
-      <View style={s.settingRow}>
-        <Ionicons name="contrast-outline" size={24} color={c.text} />
-        <View style={{ flex: 1 }}>
+      <Text style={ui.section}>Settings</Text>
+      <View style={ui.panel}>
+        <View style={[ui.panelRow, ui.panelBorder, s.wrapRow]}>
+          <Ionicons name="contrast-outline" size={18} color={c.muted} />
           <Text style={s.rowTitle}>Appearance</Text>
-          <Text style={s.rowSub}>System follows your device's setting</Text>
+          <Toggle
+            value={mode} onChange={setMode}
+            options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]}
+          />
         </View>
-      </View>
-      <Segmented
-        options={[
-          { value: 'light', label: 'Light', icon: 'sunny-outline' },
-          { value: 'dark', label: 'Dark', icon: 'moon-outline' },
-          { value: 'system', label: 'System', icon: 'phone-portrait-outline' },
-        ]}
-        value={mode}
-        onChange={setMode}
-      />
-
-      <View style={[s.settingRow, { marginTop: 26 }]}>
-        <Ionicons name="mail-unread-outline" size={24} color={c.text} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.rowTitle}>Email notifications</Text>
-          <Text style={s.rowSub}>New responses, approvals and possible matches</Text>
+        <View style={[ui.panelRow, { paddingVertical: 12 }]}>
+          <Ionicons name="mail-unread-outline" size={18} color={c.muted} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.rowTitle}>Email notifications</Text>
+            <Text style={s.rowSub}>Responses, approvals and possible matches</Text>
+          </View>
+          <Switch
+            value={user.notify_email !== false}
+            onValueChange={toggleEmails}
+            trackColor={{ false: c.border, true: c.primary }}
+            thumbColor="#fff"
+            activeThumbColor="#fff"
+            accessibilityLabel="Email notifications"
+          />
         </View>
-        <Switch
-          value={user.notify_email !== false}
-          onValueChange={toggleEmails}
-          trackColor={{ false: c.border, true: c.primary }}
-          thumbColor="#fff"
-          activeThumbColor="#fff"
-          accessibilityLabel="Email notifications"
-        />
       </View>
       <ErrorText>{error}</ErrorText>
 
-      <View style={s.divider} />
-      <Text style={s.section}>How it works</Text>
-      {STEPS.map(([icon, title, text]) => (
-        <View key={title} style={s.step}>
-          <Ionicons name={icon} size={24} color={c.text} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle}>{title}</Text>
-            <Text style={s.rowSub}>{text}</Text>
+      <Text style={ui.section}>How it works</Text>
+      <View style={ui.panel}>
+        {STEPS.map(([, title, text], i) => (
+          <View key={title} style={[ui.panelRow, s.step, i < STEPS.length - 1 && ui.panelBorder]}>
+            <View style={s.stepNum}><Text style={s.stepNumText}>{i + 1}</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rowTitle}>{title}</Text>
+              <Text style={s.rowSub}>{text}</Text>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
 
-      <View style={s.divider} />
-      <Pressable onPress={signOut} style={s.logout} hitSlop={8} accessibilityRole="button">
-        <Ionicons name="log-out-outline" size={22} color={c.text} />
-        <Text style={s.logoutText}>Log out</Text>
-      </Pressable>
-      <Text style={[ui.hint, { marginTop: 28 }]}>Connected to {API_URL}</Text>
+      <View style={[ui.panel, { marginTop: 30 }]}>
+        <Pressable onPress={signOut} style={({ hovered }) => [ui.panelRow, hovered && { backgroundColor: c.surface }]} accessibilityRole="button">
+          <Ionicons name="log-out-outline" size={18} color={c.danger} />
+          <Text style={[s.rowTitle, { color: c.danger }]}>Log out</Text>
+        </Pressable>
+      </View>
+      <Text style={[ui.hint, { marginTop: 20, color: c.faint }]}>Connected to {API_URL}</Text>
     </ScrollView>
   );
 }
@@ -135,23 +129,18 @@ function Stat({ value, label, s }) {
 }
 
 const makeStyles = (c) => ({
-  account: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  name: { fontFamily: font.bold, fontSize: 22, color: c.text, letterSpacing: -0.4 },
-  email: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2 },
-  stats: {
-    flexDirection: 'row', marginTop: 24, borderRadius: 18, borderWidth: 1, borderColor: c.divider,
-    paddingVertical: 18, boxShadow: '0 6px 20px rgba(0,0,0,0.06)', backgroundColor: c.card,
-  },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  name: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.4 },
+  email: { fontFamily: font.regular, fontSize: 13, color: c.faint, marginTop: 2 },
+  stats: { flexDirection: 'row', marginTop: 20, paddingVertical: 14 },
   stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontFamily: font.bold, fontSize: 24, color: c.text },
-  statLabel: { fontFamily: font.regular, fontSize: 13, color: c.muted, marginTop: 2 },
+  statValue: { fontFamily: font.bold, fontSize: 20, color: c.text },
+  statLabel: { fontFamily: font.medium, fontSize: 12, color: c.faint, marginTop: 2 },
   statLine: { width: 1, backgroundColor: c.divider },
-  section: { fontFamily: font.bold, fontSize: 20, color: c.text, letterSpacing: -0.3, marginTop: 32, marginBottom: 18 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 14 },
-  rowTitle: { fontFamily: font.semibold, fontSize: 16, color: c.text },
-  rowSub: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 2, lineHeight: 20 },
-  divider: { height: 1, backgroundColor: c.divider, marginTop: 32 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 20 },
-  logout: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, alignSelf: 'flex-start' },
-  logoutText: { fontFamily: font.semibold, fontSize: 16, color: c.text, textDecorationLine: 'underline' },
+  wrapRow: { flexWrap: 'wrap', paddingVertical: 10 },
+  rowTitle: { flex: 1, fontFamily: font.semibold, fontSize: 14, color: c.text },
+  rowSub: { fontFamily: font.regular, fontSize: 13, color: c.faint, marginTop: 2, lineHeight: 18 },
+  step: { alignItems: 'flex-start', paddingVertical: 12 },
+  stepNum: { width: 22, height: 22, borderRadius: 6, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  stepNumText: { fontFamily: font.bold, fontSize: 11, color: c.muted },
 });

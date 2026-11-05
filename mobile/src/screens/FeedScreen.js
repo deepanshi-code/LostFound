@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { CATEGORIES } from '../config';
+import { categoryMeta } from '../config';
 import GridCard, { GridCardSkeleton } from '../GridCard';
 import { font, useStyles, useTheme } from '../theme';
-import { Avatar, Chip, EmptyState, ErrorText, useUi } from '../ui';
-
-const ALL = { name: null, label: 'All', icon: 'apps-outline' };
+import { Avatar, CategorySheet, Chip, EmptyState, ErrorText, PropChip, Toggle, useUi } from '../ui';
 
 export default function FeedScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -30,6 +28,19 @@ export default function FeedScreen({ navigation, route }) {
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const searchRef = useRef(null);
+
+  // On the web, press / to jump to search (like Linear)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+    const onKey = (e) => {
+      const typing = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+      if (e.key === '/' && !typing) { e.preventDefault(); searchRef.current?.focus(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Explore opens Home with a category already chosen
   useEffect(() => {
@@ -74,54 +85,52 @@ export default function FeedScreen({ navigation, route }) {
   const filtered = type !== 'all' || category || query.trim();
   const clearFilters = () => { setType('all'); setCategory(null); setQuery(''); };
 
+  const cat = category ? categoryMeta(category) : null;
   const header = (
     <View style={{ paddingTop: insets.top + 14 }}>
       <View style={s.topRow}>
-        <View style={s.search}>
-          <Ionicons name="search" size={18} color={c.text} />
-          <TextInput
-            value={query} onChangeText={setQuery} placeholder="Search items or places" placeholderTextColor={c.muted}
-            returnKeyType="search" style={s.searchInput}
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Clear search">
-              <Ionicons name="close-circle" size={18} color={c.faint} />
-            </Pressable>
-          ) : null}
-        </View>
+        <Text style={s.brand}>Campus Lost & Found</Text>
         <Pressable onPress={() => navigation.navigate('Profile')} accessibilityLabel="Profile" style={s.avatar}>
-          <Avatar name={user.name} size={44} />
+          <Avatar name={user.name} size={32} />
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catContent}>
-        {[ALL, ...CATEGORIES.map((cat) => ({ name: cat.name, label: cat.name, icon: cat.icon }))].map((cat) => {
-          const active = category === cat.name;
-          return (
-            <Pressable key={cat.label} onPress={() => setCategory(cat.name)} style={({ hovered }) => [s.cat, (active || hovered) && { opacity: 1 }]}>
-              <Ionicons name={cat.icon} size={24} color={active ? c.text : c.muted} />
-              <Text style={[s.catLabel, active && { color: c.text, fontFamily: font.semibold }]} numberOfLines={1}>{cat.label}</Text>
-              <View style={[s.underline, active && { backgroundColor: c.text }]} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      <View style={s.filterRow}>
-        <View style={s.types}>
-          {[['all', 'All'], ['lost', 'Lost'], ['found', 'Found']].map(([value, label]) => (
-            <Pressable key={value} onPress={() => setType(value)} style={[s.type, type === value && s.typeActive]}>
-              <Text style={[s.typeText, type === value && { color: c.bg }]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {loaded ? <Text style={s.count}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text> : null}
+      <View style={s.search}>
+        <Ionicons name="search" size={16} color={c.faint} />
+        <TextInput
+          ref={searchRef} value={query} onChangeText={setQuery} placeholder="Search items or places" placeholderTextColor={c.faint}
+          returnKeyType="search" style={s.searchInput}
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Clear search">
+            <Ionicons name="close-circle" size={16} color={c.faint} />
+          </Pressable>
+        ) : Platform.OS === 'web' ? <Text style={s.kbd}>/</Text> : null}
       </View>
 
-      <Text style={s.heading}>{filtered ? 'Results' : 'Recently reported'}</Text>
+      <View style={s.filters}>
+        <Toggle
+          value={type} onChange={setType}
+          options={[{ value: 'all', label: 'All' }, { value: 'lost', label: 'Lost', dot: c.lost }, { value: 'found', label: 'Found', dot: c.found }]}
+        />
+        <PropChip
+          icon={cat ? cat.icon : 'pricetag-outline'} iconColor={cat?.color} value={category} placeholder="Category"
+          onPress={() => setPicker(true)} onClear={() => setCategory(null)}
+        />
+      </View>
+
       {stats && !filtered ? (
-        <Text style={s.sub}>{stats.lost_open} still lost · {stats.found_open} waiting for their owner · {stats.reunited} returned</Text>
-      ) : <View style={{ height: 14 }} />}
+        <View style={s.stats}>
+          <Stat s={s} color={c.lost} value={stats.lost_open} label="still lost" />
+          <Stat s={s} color={c.found} value={stats.found_open} label="waiting for owner" />
+          <Stat s={s} color={c.faint} value={stats.reunited} label="returned" />
+        </View>
+      ) : null}
+
+      <View style={s.headingRow}>
+        <Text style={s.heading}>{filtered ? 'Results' : 'Recently reported'}</Text>
+        {loaded ? <Text style={s.count}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text> : null}
+      </View>
       <ErrorText>{error}</ErrorText>
     </View>
   );
@@ -133,10 +142,10 @@ export default function FeedScreen({ navigation, route }) {
         contentContainerStyle={[ui.content, { maxWidth: 1240, paddingBottom: 120 }]}
         data={loaded ? items : Array.from({ length: cols * 2 }, (_, i) => ({ id: `sk${i}`, skeleton: true }))}
         numColumns={cols}
-        columnWrapperStyle={{ gap: 18 }}
+        columnWrapperStyle={{ gap: 14 }}
         keyExtractor={(i) => String(i.id)}
         ListHeaderComponent={header}
-        ItemSeparatorComponent={() => <View style={{ height: 28 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 24 }} />}
         renderItem={({ item, index }) => (
           <View style={{ flex: 1 / cols }}>
             {item.skeleton ? <GridCardSkeleton /> : (
@@ -162,33 +171,43 @@ export default function FeedScreen({ navigation, route }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.muted} />}
         keyboardShouldPersistTaps="handled"
       />
+      <CategorySheet visible={picker} onClose={() => setPicker(false)} value={category} onPick={setCategory} />
+    </View>
+  );
+}
+
+function Stat({ value, label, color, s }) {
+  return (
+    <View style={s.stat}>
+      <View style={[s.statDot, { backgroundColor: color }]} />
+      <Text style={s.statText}><Text style={s.statValue}>{value}</Text> {label}</Text>
     </View>
   );
 }
 
 const makeStyles = (c) => ({
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  brand: { fontFamily: font.bold, fontSize: 17, color: c.text, letterSpacing: -0.4 },
+  avatar: { borderRadius: 999 },
   search: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, height: 56, paddingHorizontal: 20,
-    backgroundColor: c.card, borderRadius: 999, borderWidth: 1, borderColor: c.divider,
-    boxShadow: '0 3px 12px rgba(0,0,0,0.08)',
+    flexDirection: 'row', alignItems: 'center', gap: 10, height: 44, paddingHorizontal: 14,
+    backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.divider,
   },
   searchInput: {
-    flex: 1, height: '100%', fontFamily: font.semibold, fontSize: 15, color: c.text,
+    flex: 1, height: '100%', fontFamily: font.medium, fontSize: 14, color: c.text,
     ...(Platform.OS === 'web' && { outlineStyle: 'none' }),
   },
-  avatar: { borderRadius: 999 },
-  catBar: { marginTop: 18, marginHorizontal: -20, borderBottomWidth: 1, borderBottomColor: c.divider },
-  catContent: { paddingHorizontal: 20, gap: 26 },
-  cat: { alignItems: 'center', paddingTop: 6, opacity: 0.75, minWidth: 52 },
-  catLabel: { fontFamily: font.medium, fontSize: 12, color: c.muted, marginTop: 6, marginBottom: 10 },
-  underline: { height: 2, alignSelf: 'stretch', borderRadius: 1, backgroundColor: 'transparent' },
-  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 },
-  types: { flexDirection: 'row', gap: 8 },
-  type: { height: 34, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: c.border, justifyContent: 'center' },
-  typeActive: { backgroundColor: c.text, borderColor: c.text },
-  typeText: { fontFamily: font.semibold, fontSize: 13, color: c.text },
-  count: { fontFamily: font.regular, fontSize: 13, color: c.muted },
-  heading: { fontFamily: font.bold, fontSize: 22, color: c.text, letterSpacing: -0.4, marginTop: 26 },
-  sub: { fontFamily: font.regular, fontSize: 14, color: c.muted, marginTop: 4, marginBottom: 18 },
+  kbd: {
+    fontFamily: font.semibold, fontSize: 11, color: c.faint, borderWidth: 1, borderColor: c.border,
+    borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1,
+  },
+  filters: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 6, marginTop: 20 },
+  stat: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  statDot: { width: 6, height: 6, borderRadius: 3 },
+  statText: { fontFamily: font.regular, fontSize: 13, color: c.faint },
+  statValue: { fontFamily: font.semibold, color: c.text },
+  headingRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 26, marginBottom: 14 },
+  heading: { fontFamily: font.bold, fontSize: 15, color: c.text, letterSpacing: -0.2 },
+  count: { fontFamily: font.medium, fontSize: 13, color: c.faint },
 });

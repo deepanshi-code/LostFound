@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { categoryMeta } from './config';
+import { CATEGORIES, categoryMeta } from './config';
 import { BrandGradient, Spot } from './decor';
 import { font, softShadow, tint, useStyles, useTheme } from './theme';
 
@@ -75,18 +75,81 @@ export function Icon({ name, size = 20, color, style }) {
   return <Ionicons name={name} size={size} color={color || c.muted} style={style} />;
 }
 
-// Large title at the top of a tab screen (tab screens hide the navigation header)
+// Title at the top of a tab screen (tab screens hide the navigation header), with a quiet line under it
 export function ScreenHeader({ title, subtitle, right }) {
   const ui = useUi();
   const insets = useSafeAreaInsets();
   return (
-    <View style={[ui.screenHeader, { paddingTop: insets.top + 16 }]}>
+    <View style={[ui.screenHeader, { paddingTop: insets.top + 18 }]}>
       <View style={{ flex: 1 }}>
-        {subtitle ? <Text style={ui.headerSubtitle}>{subtitle}</Text> : null}
         <Text style={ui.headerTitle}>{title}</Text>
+        {subtitle ? <Text style={ui.headerSubtitle}>{subtitle}</Text> : null}
       </View>
       {right}
     </View>
+  );
+}
+
+// Compact segmented switch (Linear style). Options: { value, label, dot?: colour, count?: number }
+export function Toggle({ options, value, onChange, style }) {
+  const { colors: c } = useTheme();
+  const ui = useUi();
+  return (
+    <View style={[ui.toggle, style]}>
+      {options.map((o) => {
+        const active = value === o.value;
+        return (
+          <Pressable key={o.value} onPress={() => onChange(o.value)} style={[ui.toggleItem, active && ui.toggleActive]} accessibilityState={{ selected: active }}>
+            {o.dot ? <View style={[ui.toggleDot, { backgroundColor: o.dot }, !active && { opacity: 0.4 }]} /> : null}
+            <Text style={[ui.toggleText, active && { color: c.text }]}>{o.label}</Text>
+            {o.count != null ? <Text style={ui.toggleCount}>{o.count}</Text> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// A property button: shows its value once set (solid), otherwise a quiet dashed placeholder
+export function PropChip({ icon, iconColor, value, placeholder, onPress, onClear }) {
+  const { colors: c } = useTheme();
+  const ui = useUi();
+  return (
+    <Pressable onPress={onPress} style={({ hovered, pressed }) => [ui.propChip, value && ui.propChipSet, (hovered || pressed) && { borderColor: c.faint }]}>
+      <Ionicons name={icon} size={15} color={value ? iconColor || c.text : c.faint} />
+      <Text style={[ui.propChipText, value && { color: c.text }]} numberOfLines={1}>{value || placeholder}</Text>
+      {value && onClear ? (
+        <Pressable onPress={onClear} hitSlop={10} accessibilityLabel={`Clear ${placeholder}`}>
+          <Ionicons name="close" size={14} color={c.muted} />
+        </Pressable>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// Pick one of the categories in a sheet
+export function CategorySheet({ visible, onClose, value, onPick }) {
+  const { colors: c } = useTheme();
+  const ui = useUi();
+  return (
+    <Sheet visible={visible} onClose={onClose} title="Category">
+      <ScrollView style={{ maxHeight: 460 }} contentContainerStyle={ui.catGrid}>
+        {CATEGORIES.map((ct) => {
+          const active = value === ct.name;
+          return (
+            <Pressable
+              key={ct.name}
+              onPress={() => { onPick(ct.name); onClose(); }}
+              style={({ hovered }) => [ui.catRow, (active || hovered) && { backgroundColor: c.surface }]}
+            >
+              <Ionicons name={ct.icon} size={17} color={ct.color} />
+              <Text style={ui.catText} numberOfLines={1}>{ct.name}</Text>
+              {active ? <Ionicons name="checkmark" size={16} color={c.text} /> : null}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </Sheet>
   );
 }
 
@@ -313,9 +376,33 @@ const uiStyles = (c) => ({
   screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 20, paddingBottom: 48, maxWidth: 720, width: '100%', alignSelf: 'center' },
 
-  screenHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingBottom: 18 },
-  headerTitle: { fontFamily: font.extrabold, fontSize: 30, color: c.text, letterSpacing: -0.9 },
-  headerSubtitle: { fontFamily: font.medium, fontSize: 14, color: c.muted, marginBottom: 4 },
+  screenHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 20 },
+  headerTitle: { fontFamily: font.bold, fontSize: 26, color: c.text, letterSpacing: -0.8 },
+  headerSubtitle: { fontFamily: font.regular, fontSize: 14, color: c.faint, marginTop: 4 },
+
+  toggle: { flexDirection: 'row', alignSelf: 'flex-start', padding: 3, borderRadius: 11, backgroundColor: c.surface },
+  toggleItem: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 32, paddingHorizontal: 12, borderRadius: 8 },
+  toggleActive: { backgroundColor: c.raised, boxShadow: `0 1px 4px ${c.shadow}` },
+  toggleDot: { width: 7, height: 7, borderRadius: 4 },
+  toggleText: { fontFamily: font.semibold, fontSize: 13, color: c.muted },
+  toggleCount: { fontFamily: font.semibold, fontSize: 12, color: c.faint },
+
+  propChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, height: 34, maxWidth: 240, paddingHorizontal: 12,
+    borderRadius: 9, borderWidth: 1, borderColor: c.divider, borderStyle: 'dashed',
+  },
+  propChipSet: { borderStyle: 'solid', borderColor: c.border, backgroundColor: c.surface },
+  propChipText: { fontFamily: font.medium, fontSize: 13, color: c.muted, flexShrink: 1 },
+
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  catRow: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 42, paddingHorizontal: 10, borderRadius: 10, flexBasis: '48%', flexGrow: 1 },
+  catText: { flex: 1, fontFamily: font.medium, fontSize: 14, color: c.text },
+
+  // Hairline-bordered panel with rows inside (Linear-style lists and settings)
+  panel: { borderRadius: 14, borderWidth: 1, borderColor: c.divider, backgroundColor: c.card, overflow: 'hidden' },
+  panelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 16 },
+  panelBorder: { borderBottomWidth: 1, borderBottomColor: c.divider },
+  section: { fontFamily: font.bold, fontSize: 15, color: c.text, letterSpacing: -0.2, marginTop: 30, marginBottom: 12 },
 
   h2: { fontFamily: font.bold, fontSize: 18, color: c.text, letterSpacing: -0.3 },
   body: { fontFamily: font.regular, fontSize: 15, color: c.text, lineHeight: 23 },
